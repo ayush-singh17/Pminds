@@ -4,6 +4,17 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
+setuptools = "<82.0.0"
+cryptography = "*"
+django-rest-knox = "*"
+fastapi = "*"
+uvicorn = "*"
+sentence-transformers = "*"
+groq = "*"
+python-dotenv = "*"
+httpx = "*"
+psycopg2-binary = "*"
+pgvector = "*"
 
 [dev-packages]
 
