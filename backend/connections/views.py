@@ -8,7 +8,14 @@ class ConnectionListCreateView(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return Connection.objects.filter(user=self.request.user)
+        folder_id = self.request.query_params.get('folder')
+        qs = Connection.objects.filter(user=self.request.user)
+        if folder_id:
+            qs = qs.filter(
+                note_from__folders__id=folder_id,
+                note_to__folders__id=folder_id
+            )
+        return qs.distinct()
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)

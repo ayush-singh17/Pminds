@@ -9,4 +9,5 @@ urlpatterns = [
     path('api/notes/', include('notes.urls')),
     path('api/tags/', include('tags.urls')),
     path('api/connections/', include('connections.urls')),
+    path('api/folders/', include('folders.urls')),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

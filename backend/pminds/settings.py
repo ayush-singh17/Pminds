@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'notes',
     'tags',
     'connections',
+    'folders',
 ]
 
 MIDDLEWARE = [
@@ -154,3 +155,4 @@ CORS_ALLOWED_ORIGINS = [
     if origin.strip()
 ]
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+AI_SERVICE_URL = os.getenv('AI_SERVICE_URL', 'http://localhost:8002')

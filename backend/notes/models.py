@@ -18,6 +18,7 @@ class Note(models.Model):
     type = models.CharField(max_length=20, choices=TYPE_CHOICES, default='thought')
     source_url = models.URLField(max_length=500, blank=True, null=True)
     tags = models.ManyToManyField('tags.Tag', blank=True, related_name='notes')
+    folders = models.ManyToManyField('folders.Folder', blank=True, related_name='notes')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
