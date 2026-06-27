@@ -12,9 +12,9 @@ uvicorn = "*"
 sentence-transformers = "*"
 groq = "*"
 python-dotenv = "*"
-httpx = "*"
 psycopg2-binary = "*"
 pgvector = "*"
+httpx = "*"
 
 [dev-packages]
 
