@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { getNote, updateNote, deleteNote, suggestConnections } from '../api/notes';
 import { getConnectionsByNote } from '../api/connections';
 import { useNoteStore } from '../store/noteStore';
+import { getFolders } from '../api/folders';
 import type { Note, Connection } from '../types';
 
 const TYPE_COLORS: Record<string, string> = {
@@ -26,16 +27,21 @@ export default function NoteDetail() {
   const [suggestionResult, setSuggestionResult] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState({ title: '', content: '' });
+  const [moving, setMoving] = useState(false);
+  const [moveSuccess, setMoveSuccess] = useState('');
+  const { folders } = useNoteStore();
 
   useEffect(() => {
     const fetch = async () => {
       try {
-        const [noteData, connsData] = await Promise.all([
+        const [noteData, connsData, foldersData] = await Promise.all([
           getNote(id!),
           getConnectionsByNote(id!),
+          getFolders(),
         ]);
         setNote(noteData);
         setConnections(connsData);
+        // folders already in store from useInitApp
         setEditForm({ title: noteData.title, content: noteData.content });
       } finally {
         setLoading(false);
@@ -212,6 +218,92 @@ export default function NoteDetail() {
               year: 'numeric', month: 'long', day: 'numeric'
             })}
           </p>
+        </div>
+
+        {/* Move to folder */}
+        <div className="rounded-xl p-6 mb-6"
+          style={{ background: '#111827', border: '1px solid #1E293B' }}>
+          <h2 className="text-sm font-medium mb-1" style={{ color: '#F8FAFC' }}>
+            Move to folder
+          </h2>
+          <p className="text-xs mb-4" style={{ color: '#94A3B8' }}>
+            Currently in: {note.folders.length > 0
+              ? note.folders.map(f => f.name).join(', ')
+              : 'Unfiled'}
+          </p>
+
+          <div className="flex flex-wrap gap-2">
+            {/* Unfiled option */}
+            <button
+              onClick={async () => {
+                setMoving(true);
+                const updated = await updateNote(note.id, { folder_ids: [] });
+                setNote(updated);
+                setMoveSuccess('Moved to Unfiled');
+                setTimeout(() => setMoveSuccess(''), 2000);
+                setMoving(false);
+              }}
+              className="px-3 py-1.5 rounded-full text-xs transition-all"
+              style={{
+                background: note.folders.length === 0 ? '#1E293B' : '#0A0F1E',
+                border: `1px solid ${note.folders.length === 0 ? '#94A3B8' : '#1E293B'}`,
+                color: note.folders.length === 0 ? '#F8FAFC' : '#94A3B8',
+              }}
+            >
+              ✦ Unfiled
+            </button>
+
+            {/* Folder options */}
+            {folders.map(folder => {
+              const inFolder = note.folders.some(f => f.id === folder.id);
+              return (
+                <button
+                  key={folder.id}
+                  onClick={async () => {
+                    setMoving(true);
+                    try {
+                      let newFolderIds: string[];
+                      if (inFolder) {
+                        // remove from this folder
+                        newFolderIds = note.folders
+                          .filter(f => f.id !== folder.id)
+                          .map(f => f.id);
+                      } else {
+                        // add to this folder
+                        newFolderIds = [...note.folders.map(f => f.id), folder.id];
+                      }
+                      const updated = await updateNote(note.id, { folder_ids: newFolderIds });
+                      setNote(updated);
+                      setMoveSuccess(inFolder ? `Removed from ${folder.name}` : `Added to ${folder.name}`);
+                      setTimeout(() => setMoveSuccess(''), 2000);
+                    } finally {
+                      setMoving(false);
+                    }
+                  }}
+                  className="px-3 py-1.5 rounded-full text-xs transition-all flex items-center gap-1.5"
+                  style={{
+                    background: inFolder ? folder.color + '22' : '#0A0F1E',
+                    border: `1px solid ${inFolder ? folder.color : '#1E293B'}`,
+                    color: inFolder ? folder.color : '#94A3B8',
+                  }}
+                >
+                  {folder.icon} {folder.name}
+                  {inFolder && <span style={{ fontSize: '10px' }}>✓</span>}
+                </button>
+              );
+            })}
+          </div>
+
+          {moveSuccess && (
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="text-xs mt-3 px-3 py-2 rounded-lg"
+              style={{ background: '#0A0F1E', color: '#10B981' }}
+            >
+              {moveSuccess}
+            </motion.p>
+          )}
         </div>
 
         {/* AI Connection Suggester */}

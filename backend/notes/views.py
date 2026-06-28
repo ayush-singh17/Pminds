@@ -25,8 +25,9 @@ class NoteListCreateView(generics.ListCreateAPIView):
             qs = qs.filter(folders__id=folder_id)
         elif unfiled == 'true':
             qs = qs.filter(folders__isnull=True)
+        # if neither param → return ALL notes
         
-        return qs.distinct()
+        return qs.distinct().order_by('-created_at')
 
     def perform_create(self, serializer):
         note = serializer.save(user=self.request.user)

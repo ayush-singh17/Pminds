@@ -6,13 +6,13 @@ import ReactFlow, {
 } from 'reactflow';
 import type { Node, Edge } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { getNotes } from '../api/notes';
+import { getNotes, createNote, suggestConnections } from '../api/notes';
 import { getConnections } from '../api/connections';
 import DotField from '../components/DotField/DotField';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useNoteStore } from '../store/noteStore';
-import type { Note } from '../types';
+import type { Note, Connection } from '../types';
 
 const TYPE_COLORS: Record<string, string> = {
   thought: '#06B6D4',
@@ -21,6 +21,8 @@ const TYPE_COLORS: Record<string, string> = {
   question: '#F43F5E',
   idea: '#8B5CF6',
 };
+
+const TYPES = ['thought', 'quote', 'article', 'question', 'idea'];
 
 export default function Graph() {
   const navigate = useNavigate();
@@ -31,6 +33,137 @@ export default function Graph() {
   const [selectedPanelNote, setSelectedPanelNote] = useState<Note | null>(null);
   const [notes, setNotes] = useState<Note[]>([]);
   const { selectedFolder } = useNoteStore();
+  const [showCreateInPanel, setShowCreateInPanel] = useState(false);
+  const [panelForm, setPanelForm] = useState({
+    title: '',
+    content: '',
+    type: 'thought',
+    folder_ids: [] as string[],
+  });
+  const [panelCreating, setPanelCreating] = useState(false);
+  const [activeTypes, setActiveTypes] = useState<string[]>([
+    'thought', 'quote', 'article', 'question', 'idea'
+  ]);
+  const [rawNotes, setRawNotes] = useState<Note[]>([]);
+  const [rawConnections, setRawConnections] = useState<Connection[]>([]);
+
+  const toggleType = (type: string) => {
+    setActiveTypes(prev =>
+      prev.includes(type)
+        ? prev.filter(t => t !== type)
+        : [...prev, type]
+    );
+  };
+
+  const buildGraph = (notesList: Note[], connectionsList: Connection[]) => {
+    const filteredNotes = notesList.filter(n => activeTypes.includes(n.type));
+    const filteredConnections = connectionsList.filter(conn => {
+      const fromNote = notesList.find(n => n.id === conn.note_from);
+      const toNote = notesList.find(n => n.id === conn.note_to);
+      return fromNote && toNote &&
+        activeTypes.includes(fromNote.type) &&
+        activeTypes.includes(toNote.type);
+    });
+
+    const connectionCount: Record<string, number> = {};
+    filteredConnections.forEach((conn) => {
+      connectionCount[conn.note_from] = (connectionCount[conn.note_from] || 0) + 1;
+      connectionCount[conn.note_to] = (connectionCount[conn.note_to] || 0) + 1;
+    });
+
+    const centralNoteId = Object.entries(connectionCount)
+      .sort((a, b) => b[1] - a[1])[0]?.[0] || filteredNotes[0]?.id;
+
+    const angleStep = (2 * Math.PI) / Math.max(filteredNotes.length - 1, 1);
+    const radius = 320;
+    const cx = 500;
+    const cy = 400;
+    let angleIndex = 0;
+
+    const flowNodes: Node[] = filteredNotes.map((note) => {
+      const isCentral = note.id === centralNoteId;
+      const position = isCentral
+        ? { x: cx, y: cy }
+        : {
+            x: cx + radius * Math.cos(angleStep * angleIndex),
+            y: cy + radius * Math.sin(angleStep * angleIndex++),
+          };
+
+      return {
+        id: note.id,
+        position,
+        data: { label: note.title, type: note.type },
+        style: {
+          background: isCentral ? '#06B6D4' : '#111827',
+          border: `1px solid ${isCentral ? '#06B6D4' : TYPE_COLORS[note.type] || '#1E293B'}`,
+          borderRadius: isCentral ? '50%' : '8px',
+          color: isCentral ? '#0A0F1E' : '#F8FAFC',
+          fontSize: isCentral ? '13px' : '12px',
+          fontWeight: isCentral ? '600' : '400',
+          padding: isCentral ? '20px' : '8px 14px',
+          width: isCentral ? '140px' : '160px',
+          height: isCentral ? '140px' : 'auto',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          textAlign: 'center',
+          cursor: 'pointer',
+          boxShadow: isCentral ? '0 0 30px rgba(6,182,212,0.3)' : 'none',
+        },
+      };
+    });
+
+    const flowEdges: Edge[] = filteredConnections.map((conn) => {
+      const strength = conn.strength || 0;
+      
+      // Map strength (0-1) to stroke width (1-4)
+      const strokeWidth = 1 + strength * 3;
+      
+      // Map strength to opacity
+      const opacity = 0.3 + strength * 0.7;
+
+      return {
+        id: conn.id,
+        source: conn.note_from,
+        target: conn.note_to,
+        style: {
+          stroke: `rgba(6, 182, 212, ${opacity})`,
+          strokeWidth,
+        },
+        animated: strength > 0.7, // animate strong connections
+        label: conn.strength ? `${Math.round(conn.strength * 100)}%` : '',
+        labelStyle: { fill: '#94A3B8', fontSize: 10 },
+        labelBgStyle: { fill: '#111827' },
+        labelBgPadding: [4, 4] as [number, number],
+        labelBgBorderRadius: 4,
+      };
+    });
+
+    setNodes(flowNodes);
+    setEdges(flowEdges);
+  };
+
+  const handlePanelCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPanelCreating(true);
+    try {
+      const note = await createNote({
+        ...panelForm,
+        folder_ids: selectedFolder ? [selectedFolder.id] : [],
+      });
+      const newNotes = [note, ...notes];
+      setNotes(newNotes);
+      setShowCreateInPanel(false);
+      setPanelForm({ title: '', content: '', type: 'thought', folder_ids: [] });
+
+      await suggestConnections(note.id);
+
+      const newConns = await getConnections(selectedFolder?.id);
+      buildGraph(newNotes, newConns);
+    } finally {
+      setPanelCreating(false);
+    }
+  };
 
   useEffect(() => {
     const fetch = async () => {
@@ -41,81 +174,19 @@ export default function Graph() {
         ]);
         
         setNotes(notesData);
-
-        // Count connections per note
-        const connectionCount: Record<string, number> = {};
-        connectionsData.forEach((conn) => {
-          connectionCount[conn.note_from] = (connectionCount[conn.note_from] || 0) + 1;
-          connectionCount[conn.note_to] = (connectionCount[conn.note_to] || 0) + 1;
-        });
-
-        // Find the most connected note
-        const centralNoteId = Object.entries(connectionCount)
-          .sort((a, b) => b[1] - a[1])[0]?.[0] || notesData[0]?.id;
-
-        // Layout
-        const angleStep = (2 * Math.PI) / (notesData.length - 1 || 1);
-        const radius = 320;
-        const cx = 500;
-        const cy = 400;
-
-        let angleIndex = 0;
-
-        const flowNodes: Node[] = notesData.map((note) => {
-          const isCentral = note.id === centralNoteId;
-
-          const position = isCentral
-            ? { x: cx, y: cy }
-            : {
-                x: cx + radius * Math.cos(angleStep * angleIndex),
-                y: cy + radius * Math.sin(angleStep * angleIndex++),
-              };
-
-          return {
-            id: note.id,
-            position,
-            data: { label: note.title, type: note.type },
-            style: {
-              background: isCentral ? '#06B6D4' : '#111827',
-              border: `1px solid ${isCentral ? '#06B6D4' : TYPE_COLORS[note.type] || '#1E293B'}`,
-              borderRadius: isCentral ? '50%' : '8px',
-              color: isCentral ? '#0A0F1E' : '#F8FAFC',
-              fontSize: isCentral ? '13px' : '12px',
-              fontWeight: isCentral ? '600' : '400',
-              padding: isCentral ? '20px' : '8px 14px',
-              width: isCentral ? '140px' : '160px',
-              height: isCentral ? '140px' : 'auto',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              textAlign: 'center',
-              cursor: 'pointer',
-              boxShadow: isCentral ? '0 0 30px rgba(6,182,212,0.3)' : 'none',
-            },
-          };
-        });
-
-        const flowEdges: Edge[] = connectionsData.map((conn) => ({
-          id: conn.id,
-          source: conn.note_from,
-          target: conn.note_to,
-          style: { stroke: '#1E293B', strokeWidth: 1.5 },
-          animated: false,
-          label: conn.strength ? `${Math.round(conn.strength * 100)}%` : '',
-          labelStyle: { fill: '#94A3B8', fontSize: 10 },
-          labelBgStyle: { fill: '#111827' },
-          labelBgPadding: [4, 4] as [number, number],
-          labelBgBorderRadius: 4,
-        }));
-
-        setNodes(flowNodes);
-        setEdges(flowEdges);
+        setRawNotes(notesData);
+        setRawConnections(connectionsData);
+        buildGraph(notesData, connectionsData);
       } finally {
         setLoading(false);
       }
     };
     fetch();
   }, [selectedFolder]);
+
+  useEffect(() => {
+    if (rawNotes.length > 0) buildGraph(rawNotes, rawConnections);
+  }, [activeTypes]);
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: '#0A0F1E' }}>
@@ -173,6 +244,31 @@ export default function Graph() {
         <p style={{ color: '#94A3B8', fontSize: 12 }}>
           {nodes.length} ideas · {edges.length} connections
         </p>
+      </div>
+
+      {/* Type filters */}
+      <div style={{
+        position: 'absolute', bottom: 24, left: '50%',
+        transform: 'translateX(-50%)', zIndex: 2,
+        display: 'flex', gap: '8px',
+        background: '#111827', border: '1px solid #1E293B',
+        borderRadius: '999px', padding: '6px 12px',
+      }}>
+        {Object.entries(TYPE_COLORS).map(([type, color]) => (
+          <button
+            key={type}
+            onClick={() => toggleType(type)}
+            style={{
+              padding: '4px 12px', borderRadius: '999px',
+              border: 'none', cursor: 'pointer', fontSize: '12px',
+              background: activeTypes.includes(type) ? color + '33' : 'transparent',
+              color: activeTypes.includes(type) ? color : '#94A3B8',
+              transition: 'all 0.2s',
+            }}
+          >
+            ● {type}
+          </button>
+        ))}
       </div>
 
       {/* Navigation buttons */}
@@ -314,18 +410,116 @@ export default function Graph() {
             </>
           ) : (
             <>
-              {/* Notes list view */}
+              {/* Panel header */}
               <div style={{
                 padding: '14px 16px',
                 borderBottom: '1px solid #1E293B',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
               }}>
-                <p style={{ color: '#F8FAFC', fontSize: '13px', fontWeight: 500 }}>
-                  Your notes
-                </p>
-                <p style={{ color: '#94A3B8', fontSize: '11px', marginTop: '2px' }}>
-                  {notes.length} ideas
-                </p>
+                <div>
+                  <p style={{ color: '#F8FAFC', fontSize: '13px', fontWeight: 500 }}>
+                    Your notes
+                  </p>
+                  <p style={{ color: '#94A3B8', fontSize: '11px', marginTop: '2px' }}>
+                    {notes.length} ideas
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowCreateInPanel(!showCreateInPanel);
+                    setSelectedPanelNote(null);
+                  }}
+                  style={{
+                    background: showCreateInPanel ? '#06B6D4' : '#1E293B',
+                    color: showCreateInPanel ? '#0A0F1E' : '#94A3B8',
+                    border: 'none', borderRadius: '6px',
+                    padding: '4px 10px', fontSize: '13px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  +
+                </button>
               </div>
+
+              {/* Inline create form */}
+              {showCreateInPanel && (
+                <motion.form
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  onSubmit={handlePanelCreate}
+                  style={{ padding: '12px', borderBottom: '1px solid #1E293B' }}
+                >
+                  <input
+                    type="text"
+                    placeholder="Title"
+                    value={panelForm.title}
+                    onChange={(e) => setPanelForm({ ...panelForm, title: e.target.value })}
+                    required
+                    style={{
+                      width: '100%', marginBottom: '8px',
+                      background: '#0A0F1E', border: '1px solid #1E293B',
+                      borderRadius: '6px', padding: '6px 10px',
+                      color: '#F8FAFC', fontSize: '12px', outline: 'none',
+                    }}
+                  />
+                  <textarea
+                    placeholder="What's on your mind?"
+                    value={panelForm.content}
+                    onChange={(e) => setPanelForm({ ...panelForm, content: e.target.value })}
+                    required
+                    rows={3}
+                    style={{
+                      width: '100%', marginBottom: '8px',
+                      background: '#0A0F1E', border: '1px solid #1E293B',
+                      borderRadius: '6px', padding: '6px 10px',
+                      color: '#F8FAFC', fontSize: '12px', outline: 'none',
+                      resize: 'none',
+                    }}
+                  />
+                  <select
+                    value={panelForm.type}
+                    onChange={(e) => setPanelForm({ ...panelForm, type: e.target.value })}
+                    style={{
+                      width: '100%', marginBottom: '8px',
+                      background: '#0A0F1E', border: '1px solid #1E293B',
+                      borderRadius: '6px', padding: '6px 10px',
+                      color: '#F8FAFC', fontSize: '12px', outline: 'none',
+                    }}
+                  >
+                    {TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setShowCreateInPanel(false)}
+                      style={{
+                        flex: 1, padding: '6px',
+                        background: '#1E293B', border: 'none',
+                        borderRadius: '6px', color: '#94A3B8',
+                        fontSize: '12px', cursor: 'pointer',
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={panelCreating}
+                      style={{
+                        flex: 1, padding: '6px',
+                        background: '#06B6D4', border: 'none',
+                        borderRadius: '6px', color: '#0A0F1E',
+                        fontSize: '12px', fontWeight: 500,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {panelCreating ? 'Saving...' : 'Save'}
+                    </button>
+                  </div>
+                </motion.form>
+              )}
 
               <div style={{ overflowY: 'auto', flex: 1, padding: '8px' }}>
                 {notes.map((note) => (
