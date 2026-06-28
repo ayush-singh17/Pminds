@@ -6,10 +6,15 @@ import Dashboard from './pages/Dashboard';
 import Notes from './pages/Notes';
 import NoteDetail from './pages/NoteDetail';
 import Graph from './pages/Graph';
+import Folders from './pages/Folders';
+import Graphs from './pages/Graphs';
+import RecentNotes from './pages/RecentNotes';
 import ProtectedRoute from './components/ProtectedRoute';
 import { useInitApp } from './hooks/useInitApp';
+import { useTheme } from './hooks/useTheme';
 
 function App() {
+  useTheme();
   useInitApp();
   const { isAuthenticated } = useAuthStore();
 
@@ -24,6 +29,9 @@ function App() {
           <Route path="/notes" element={<Notes />} />
           <Route path="/notes/:id" element={<NoteDetail />} />
           <Route path="/graph" element={<Graph />} />
+          <Route path="/folders" element={<Folders />} />
+          <Route path="/graphs" element={<Graphs />} />
+          <Route path="/recent" element={<RecentNotes />} />
         </Route>
       </Routes>
     </BrowserRouter>

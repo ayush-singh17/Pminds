@@ -48,3 +48,13 @@ export const suggestConnections = async (noteId: string) => {
   const response = await api.post(`/notes/${noteId}/suggest-connections/`);
   return response.data;
 };
+
+export const getPatternInsight = async (notes: { title: string; content: string }[]): Promise<string | null> => {
+  const response = await fetch('http://localhost:8002/insights/pattern', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ notes }),
+  });
+  const data = await response.json();
+  return data.insight;
+};
