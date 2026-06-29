@@ -1,0 +1,11 @@
+django
+djangorestframework
+django-cors-headers
+django-filter
+django-rest-knox
+django-ratelimit
+nh3
+httpx
+python-dotenv
+psycopg2-binary
+django-redis

@@ -102,6 +102,7 @@ function MiniGraph({ folder }: { folder: Folder | null }) {
       zoomOnScroll={false}
       panOnDrag={false}
       style={{ background: 'transparent' }}
+      proOptions={{ hideAttribution: true }}
     >
     </ReactFlow>
   );
