@@ -6,7 +6,11 @@ export const useTheme = () => {
 
   useEffect(() => {
     const root = document.documentElement;
+    const body = document.body;
+
     if (isDark) {
+      body.classList.remove('light');
+      body.classList.add('dark');
       root.style.setProperty('--bg', '#0A0F1E');
       root.style.setProperty('--surface', '#111827');
       root.style.setProperty('--border', '#1E293B');
@@ -15,6 +19,8 @@ export const useTheme = () => {
       root.style.setProperty('--text-muted', '#94A3B8');
       root.style.setProperty('--input-bg', '#0A0F1E');
     } else {
+      body.classList.remove('dark');
+      body.classList.add('light');
       root.style.setProperty('--bg', '#F8FAFC');
       root.style.setProperty('--surface', '#FFFFFF');
       root.style.setProperty('--border', '#E2E8F0');
