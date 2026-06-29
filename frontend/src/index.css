@@ -35,3 +35,9 @@ body {
   background: var(--border);
   border-radius: 2px;
 }
+
+.react-flow__attribution {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+}

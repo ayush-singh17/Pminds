@@ -27,9 +27,21 @@ load_dotenv(BASE_DIR / '.env')
 SECRET_KEY = os.getenv('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+
+# Security settings for production
+if not DEBUG:
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    X_FRAME_OPTIONS = 'DENY'
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
 
 
 # Application definition
@@ -44,6 +56,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'knox',
     'corsheaders',
+    'django_ratelimit',
     'accounts',
     'notes',
     'tags',
@@ -96,6 +109,20 @@ DATABASES = {
     }
 }
 
+REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379')
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': REDIS_URL,
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+        }
+    }
+}
+
+RATELIMIT_USE_CACHE = 'default'
+
 
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
@@ -143,16 +170,32 @@ REST_FRAMEWORK = {
 from datetime import timedelta
 REST_KNOX = {
     'TOKEN_TTL': timedelta(days=7),
+    'TOKEN_LIMIT_PER_USER': 5,
     'AUTO_REFRESH': True,
+    'MIN_REFRESH_INTERVAL': 60,
 }
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 AUTH_USER_MODEL = 'accounts.User'
-CORS_ALLOWED_ORIGINS = [
-    origin.strip() 
-    for origin in os.getenv('CORS_ALLOWED_ORIGINS', '').split(',') 
-    if origin.strip()
+# Development
+if DEBUG:
+    CORS_ALLOWED_ORIGINS = [
+        'http://localhost:5173',
+        'http://localhost:3000',
+    ]
+else:
+    # Production — replace with your actual domains
+    CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', '').split(',')
+    CORS_ALLOW_ALL_ORIGINS = False
+
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'authorization',
+    'content-type',
+    'x-requested-with',
 ]
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AI_SERVICE_URL = os.getenv('AI_SERVICE_URL', 'http://localhost:8002')

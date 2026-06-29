@@ -1,8 +1,12 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from pydantic import BaseModel
 from services.groq_service import explain_connection
 from groq import Groq
 import os
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+
+limiter = Limiter(key_func=get_remote_address)
 
 router = APIRouter()
 
@@ -10,7 +14,8 @@ class InsightRequest(BaseModel):
     notes: list[dict]
 
 @router.post("/pattern")
-async def get_pattern(req: InsightRequest):
+@limiter.limit("20/minute")
+async def get_pattern(request: Request, req: InsightRequest):
     if not req.notes:
         return {"insight": None}
 

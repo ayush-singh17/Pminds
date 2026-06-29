@@ -141,6 +141,10 @@ class NoteDetailView(generics.RetrieveUpdateDestroyAPIView):
         except Exception:
             pass  # Don't fail note creation if AI is down
 
+from django_ratelimit.decorators import ratelimit
+from django.utils.decorators import method_decorator
+
+@method_decorator(ratelimit(key='user', rate='30/m', method='POST', block=True), name='post')
 class NoteSuggestConnectionsView(generics.GenericAPIView):
     permission_classes = [permissions.IsAuthenticated]
 

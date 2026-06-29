@@ -189,19 +189,23 @@ export default function Graph() {
   }, [activeTypes]);
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: '#0A0F1E' }}>
+    <div style={{ position: 'fixed', inset: 0, background: 'black' }}>
       {/* Dot field background */}
-      <div style={{ position: 'absolute', inset: 0, zIndex: 0 }}>
+      <div style={{ width: '100%', height: '100%', position: 'relative',backgroundColor: '#000000'}}>
         <DotField
-          dotRadius={1}
-          dotSpacing={20}
-          bulgeStrength={19}
-          cursorForce={0.04}
-          gradientFrom="rgba(6,182,212,0.15)"
-          gradientTo="rgba(16,185,129,0.08)"
-          glowColor="#0A0F1E"
+          dotRadius={1.5}
+          dotSpacing={14}
+          bulgeStrength={67}
+          glowRadius={160}
+          sparkle={false}
+          waveAmplitude={0}
+          cursorRadius={500}
+          cursorForce={0.1}
           bulgeOnly
-        />
+          gradientFrom="#3b3a3a"
+          gradientTo="#8c8c8c"
+          glowColor="#000000"
+      />
       </div>
 
       {/* React Flow on top */}
@@ -219,6 +223,7 @@ export default function Graph() {
             onNodeClick={(_, node) => navigate(`/notes/${node.id}`)}
             fitView
             style={{ background: 'transparent' }}
+            proOptions={{ hideAttribution: true }}
           >
             <MiniMap
               style={{ 

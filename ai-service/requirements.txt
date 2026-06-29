@@ -1,1 +1,7 @@
-# requirements.txt
+fastapi
+uvicorn
+slowapi
+groq
+sentence-transformers
+python-dotenv
+httpx

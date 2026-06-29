@@ -15,6 +15,10 @@ python-dotenv = "*"
 psycopg2-binary = "*"
 pgvector = "*"
 httpx = "*"
+nh3 = "*"
+django-ratelimit = "*"
+slowapi = "*"
+django-redis = "*"
 
 [dev-packages]
 

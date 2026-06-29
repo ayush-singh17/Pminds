@@ -18,6 +18,8 @@ class UserSerializer(serializers.ModelSerializer):
             return request.build_absolute_uri(obj.avatar.url) if request else obj.avatar.url
         return None
 
+from utils.sanitize import sanitize_plain
+
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True, style={'input_type': 'password'})
     password_confirm = serializers.CharField(write_only=True, required=True, style={'input_type': 'password'})
@@ -25,6 +27,15 @@ class RegisterSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ('id', 'email', 'password', 'password_confirm', 'first_name', 'last_name')
+
+    def validate_email(self, value):
+        return sanitize_plain(value.strip().lower())
+
+    def validate_first_name(self, value):
+        return sanitize_plain(value.strip())
+
+    def validate_last_name(self, value):
+        return sanitize_plain(value.strip())
 
     def validate(self, attrs):
         if attrs['password'] != attrs['password_confirm']:
