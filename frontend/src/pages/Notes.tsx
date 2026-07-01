@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getNotes, createNote, deleteNote } from '../api/notes';
-import { getTags } from '../api/tags';
+import { getTags, createTag } from '../api/tags';
 import { getFolders } from '../api/folders';
 import { useNoteStore } from '../store/noteStore';
 
@@ -38,11 +38,24 @@ export default function Notes() {
     folder_ids: [] as string[],
   });
   const [creating, setCreating] = useState(false);
+  const [newTagName, setNewTagName] = useState('');
+
+  const handleCreateTag = async () => {
+    if (!newTagName.trim()) return;
+    const colors = ['#06B6D4', '#10B981', '#F59E0B', '#F43F5E', '#8B5CF6'];
+    const randomColor = colors[Math.floor(Math.random() * colors.length)];
+    const tag = await createTag({ name: newTagName.trim(), color: randomColor });
+    setTags([...tags, tag]);
+    setForm(f => ({ ...f, tag_ids: [...f.tag_ids, tag.id] }));
+    setNewTagName('');
+  };
 
   useEffect(() => {
     const fetch = async () => {
       try {
-        const params = selectedFolder
+        const params = selectedFolder?.id === 'inbox'
+          ? {} // no filter = all notes
+          : selectedFolder
           ? { folder: selectedFolder.id }
           : { unfiled: true };
 
@@ -112,7 +125,7 @@ export default function Notes() {
               <span style={{ color: selectedFolder.color }}>{selectedFolder.icon}</span>
             )}
             <h1 className="text-2xl font-semibold" style={{ color: '#F8FAFC' }}>
-              {selectedFolder ? selectedFolder.name : 'Unfiled'}
+              {selectedFolder?.id === 'inbox' ? 'Inbox' : selectedFolder ? selectedFolder.name : 'Unfiled'}
             </h1>
           </div>
           <p className="text-sm" style={{ color: '#94A3B8' }}>
@@ -243,8 +256,9 @@ export default function Notes() {
                 </div>
 
                 {/* Tags */}
-                {tags.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
+                <div>
+                  <p className="text-xs mb-2" style={{ color: '#94A3B8' }}>Tags</p>
+                  <div className="flex flex-wrap gap-2 mb-2">
                     {tags.map(tag => (
                       <button
                         key={tag.id}
@@ -266,7 +280,37 @@ export default function Notes() {
                       </button>
                     ))}
                   </div>
-                )}
+
+                  {/* Create new tag inline */}
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="New tag name..."
+                      value={newTagName}
+                      onChange={(e) => setNewTagName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleCreateTag();
+                        }
+                      }}
+                      className="flex-1 rounded-lg px-2 py-1.5 text-xs outline-none"
+                      style={{
+                        background: '#0A0F1E',
+                        border: '1px solid #1E293B',
+                        color: '#F8FAFC',
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleCreateTag}
+                      className="px-3 py-1.5 rounded-lg text-xs"
+                      style={{ background: '#06B6D4', color: '#0A0F1E' }}
+                    >
+                      Add
+                    </button>
+                  </div>
+                </div>
 
                 {/* Folder assignment */}
                 {folders.length > 0 && (

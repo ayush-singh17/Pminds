@@ -284,9 +284,15 @@ function GraphInner() {
           buildGraph(cached.notes, cached.connections, isDark);
           setLoading(false);
 
+          const params = selectedFolder?.id === 'inbox'
+            ? {}
+            : selectedFolder
+            ? { folder: selectedFolder.id }
+            : { unfiled: true };
+
           const [notesData, connectionsData] = await Promise.all([
-            getNotes(selectedFolder ? { folder: selectedFolder.id } : { unfiled: true }),
-            getConnections(selectedFolder?.id),
+            getNotes(params),
+            getConnections(selectedFolder?.id === 'inbox' ? undefined : selectedFolder?.id),
           ]);
 
           const notesChanged = JSON.stringify(notesData.map(n => n.id)) !== 
@@ -303,9 +309,15 @@ function GraphInner() {
           return;
         }
 
+        const params = selectedFolder?.id === 'inbox'
+          ? {}
+          : selectedFolder
+          ? { folder: selectedFolder.id }
+          : { unfiled: true };
+
         const [notesData, connectionsData] = await Promise.all([
-          getNotes(selectedFolder ? { folder: selectedFolder.id } : { unfiled: true }),
-          getConnections(selectedFolder?.id),
+          getNotes(params),
+          getConnections(selectedFolder?.id === 'inbox' ? undefined : selectedFolder?.id),
         ]);
 
         setNotes(notesData);
