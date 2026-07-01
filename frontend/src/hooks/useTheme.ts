@@ -11,13 +11,13 @@ export const useTheme = () => {
     if (isDark) {
       body.classList.remove('light');
       body.classList.add('dark');
-      root.style.setProperty('--bg', '#0A0F1E');
+      root.style.setProperty('--bg', '#000000');
       root.style.setProperty('--surface', '#111827');
       root.style.setProperty('--border', '#1E293B');
       root.style.setProperty('--sidebar', '#0D1424');
-      root.style.setProperty('--text-primary', '#F8FAFC');
+      root.style.setProperty('--text-primary', '#e2e2d6');
       root.style.setProperty('--text-muted', '#94A3B8');
-      root.style.setProperty('--input-bg', '#0A0F1E');
+      root.style.setProperty('--input-bg', '#000000');
     } else {
       body.classList.remove('dark');
       body.classList.add('light');

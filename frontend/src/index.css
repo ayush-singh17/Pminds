@@ -3,18 +3,18 @@
 body {
   background-color: var(--bg);
   color: var(--text-primary);
-  font-family: 'Inter', sans-serif;
+  font-family: 'Lekton', monospace;
   transition: background-color 0.2s, color 0.2s;
 }
 
 :root {
-  --bg: #0A0F1E;
+  --bg: black;
   --surface: #111827;
   --border: #1E293B;
   --sidebar: #0D1424;
   --text-primary: #F8FAFC;
   --text-muted: #94A3B8;
-  --input-bg: #0A0F1E;
+  --input-bg: black;
 }
 
 * {

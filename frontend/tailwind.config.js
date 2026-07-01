@@ -7,7 +7,7 @@ export default {
   theme: {
     extend: {
       colors: {
-        background: '#0A0F1E',
+        background: '#000000',
         surface: '#111827',
         border: '#1E293B',
         accent: '#06B6D4',
@@ -16,7 +16,7 @@ export default {
         primary: '#F8FAFC',
       },
       fontFamily: {
-        sans: ['Inter', 'sans-serif'],
+        sans: ['Lekton', 'monospace'],
       },
     },
   },
