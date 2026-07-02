@@ -33,6 +33,7 @@ export default function Header() {
         WebkitBackdropFilter: 'blur(10px)',
         border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.08)',
         boxShadow: '0 8px 32px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.05)',
+        width:'95%',alignSelf:'center'
       }}
     >
       <h1 style={{ color: 'var(--text-primary)', fontSize: '32px', fontWeight: 600 }}>
@@ -49,10 +50,10 @@ export default function Header() {
           borderRadius: '8px', padding: '8px 14px', cursor: 'pointer',
         }}
       >
-        <span style={{ color: '#e2e2d6', fontSize: '13px' }}>Search...</span>
+        <span style={{ color: isDark ? '#e2e2d6' : 'black', fontSize: '13px' }}>Search...</span>
         <kbd style={{
           background: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)',
-          color: '#e2e2d6', fontSize: '11px',
+          color: isDark ? '#e2e2d6' : 'black', fontSize: '11px',
           padding: '2px 6px', borderRadius: '4px',
         }}>⌘K</kbd>
       </button>

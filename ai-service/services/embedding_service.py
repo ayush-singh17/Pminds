@@ -1,8 +1,10 @@
 from sentence_transformers import SentenceTransformer
 import numpy as np
 
-# Loads once when the service starts — not on every request
+# This runs ONCE when the service starts
+print("Loading embedding model...")
 model = SentenceTransformer('all-MiniLM-L6-v2')
+print("Model loaded.")
 
 def generate_embedding(text: str) -> list[float]:
     embedding = model.encode(text, convert_to_numpy=True)

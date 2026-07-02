@@ -19,6 +19,7 @@ nh3 = "*"
 django-ratelimit = "*"
 slowapi = "*"
 django-redis = "*"
+celery = {extras = ["redis"], version = "*"}
 
 [dev-packages]
 

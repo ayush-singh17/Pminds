@@ -9,6 +9,7 @@ class NoteInput(BaseModel):
     id: str
     title: str
     content: str
+    tags: list[str] = []
 
 class ConnectionRequest(BaseModel):
     note1: NoteInput
@@ -37,6 +38,8 @@ def explain(request: ConnectionRequest):
 @router.post("/suggest")
 def suggest_connections(request: BulkConnectionRequest):
     target_text = f"{request.target.title}. {request.target.content}"
+    if request.target.tags:
+        target_text += f". Tags: {', '.join(request.target.tags)}"
     target_vec = generate_embedding(target_text)
 
     suggestions = []
@@ -44,6 +47,8 @@ def suggest_connections(request: BulkConnectionRequest):
         if candidate.id == request.target.id:
             continue
         candidate_text = f"{candidate.title}. {candidate.content}"
+        if candidate.tags:
+            candidate_text += f". Tags: {', '.join(candidate.tags)}"
         candidate_vec = generate_embedding(candidate_text)
         strength = cosine_similarity(target_vec, candidate_vec)
 

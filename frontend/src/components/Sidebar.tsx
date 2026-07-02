@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useInView } from 'framer-motion';
 import { useNoteStore } from '../store/noteStore';
 import { useThemeStore } from '../store/themeStore';
 import { createFolder, deleteFolder } from '../api/folders';
@@ -15,6 +15,21 @@ const FOLDER_COLORS = [
   '#06B6D4', '#10B981', '#F59E0B', '#F43F5E',
   '#8B5CF6', '#EC4899', '#14B8A6', '#F97316',
 ];
+
+const AnimatedItem = ({ children, index }: { children: React.ReactNode; index: number }) => {
+  const ref = useRef<HTMLDivElement>(null);
+  const inView = useInView(ref, { amount: 0.3, once: false });
+  return (
+    <motion.div
+      ref={ref}
+      initial={{ scale: 0.95, opacity: 0 }}
+      animate={inView ? { scale: 1, opacity: 1 } : { scale: 0.95, opacity: 0 }}
+      transition={{ duration: 0.15, delay: index * 0.05 }}
+    >
+      {children}
+    </motion.div>
+  );
+};
 
 const FOLDER_ICONS: Record<string, React.ReactNode> = {
   folder: <FaFolder />,
@@ -91,9 +106,9 @@ export default function Sidebar() {
     borderLeft: active ? '3px solid #e2e2e6' : '1px solid transparent',
     paddingLeft: active ? '13px' : '15px',
     background: active
-      ? (isDark ? 'rgba(226, 226, 214,0.08)' : 'rgba(6,182,212,0.08)')
+      ? (isDark ? 'rgba(226, 226, 214,0.08)' : '#2a292b0d')
       : 'transparent',
-    color: active ? '#e2e2e6' : 'var(--text-primary)',
+    color: active ? (isDark ? '#e2e2e6' : 'black') : (isDark ? '#e2e2e6' : 'black'),
     transition: 'all 0.15s',
   });
 
@@ -105,15 +120,17 @@ export default function Sidebar() {
     <aside
       style={{
         width: '230px', borderRadius: '12px',
-        margin: '0 12px 12px 12px',
-        display: 'flex', flexDirection: 'column',
+        margin: '0 0 12px 12px',
+        display: 'flex', flexDirection: 'column', flexShrink: 0,
         background: isDark
           ? 'linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)'
-          : 'linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 100%)',
+          : 'linear-gradient(180deg, rgba(255,255,255,0.5) 0%, rgba(226,226,214,0.3) 100%)',
         backdropFilter: 'blur(10px)',
         WebkitBackdropFilter: 'blur(10px)',
-        border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.08)',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.05)',
+        border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.06)',
+        boxShadow: isDark
+          ? '0 8px 32px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.05)'
+          : '0 4px 16px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)',
       }}
     >
       <div className="flex-1 overflow-y-auto py-4 px-3 flex flex-col gap-2">
@@ -288,7 +305,7 @@ export default function Sidebar() {
                       onClick={() => { setSelectedFolder(null); navigate('/notes'); }}
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <span style={{ color: '#e2e2e6', fontSize: '14px', display: 'flex' }}>✦</span>
+                        <span style={{ color: isDark ? '#e2e2e6':'black', fontSize: '14px', display: 'flex' }}>✦</span>
                         <span className="text-sm truncate leading-none" style={{ color: (!selectedFolder && isActive('/notes')) ? 'var(--text-primary)' : 'var(--text-muted)' }}>All Notes</span>
                       </div>
                     </motion.div>
@@ -298,38 +315,38 @@ export default function Sidebar() {
                         No folders yet
                       </p>
                     ) : (
-                      folders.map((folder) => {
+                      folders.map((folder, index) => {
                         const active = selectedFolder?.id === folder.id && isActive('/notes');
                         return (
-                          <motion.div key={folder.id} whileHover={{ x: 4 }}
-                            className="flex items-center justify-between rounded-md cursor-pointer group"
-                            style={{
-                              ...activeBarStyle(active),
-                              width: '90%', alignSelf: 'center', display: 'flex',
-                              padding: '10px', paddingLeft: '15px', marginBottom: '2px',
-                            }}
-                            onClick={() => handleFolderClick(folder)}
-                          >
-                            <div className="flex items-center gap-3 min-w-0">
-                              <span style={{ color: folder.color, fontSize: '14px', display: 'flex' }}>
-                                {renderFolderIcon(folder.icon)}
-                              </span>
-                              <span 
-                                className="text-sm truncate leading-none" 
-                                style={{ color: active ? 'var(--text-primary)' : 'var(--text-muted)' }}
-                              >
-                                {folder.name}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-1.5 shrink-0">
-                              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{folder.note_count}</span>
-                              <button
-                                onClick={(e) => handleDeleteFolder(e, folder)}
-                                className="opacity-0 group-hover:opacity-100 text-xs transition-opacity"
-                                style={{ color: '#F43F5E', background: 'none', border: 'none', cursor: 'pointer' }}
-                              >✕</button>
-                            </div>
-                          </motion.div>
+                          <AnimatedItem key={folder.id} index={index}>
+                            <motion.div
+                              whileHover={{ x: 4 }}
+                              className="flex items-center justify-between rounded-md cursor-pointer group"
+                              style={{
+                                ...activeBarStyle(active),
+                                width: '100%', alignSelf: 'center', display: 'flex',
+                                padding: '10px', paddingLeft: '15px', marginBottom: '2px',
+                              }}
+                              onClick={() => handleFolderClick(folder)}
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span style={{ color: folder.color, fontSize: '14px', display: 'flex' }}>
+                                  {renderFolderIcon(folder.icon)}
+                                </span>
+                                <span className="text-sm truncate" style={{ color: active ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                                  {folder.name}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{folder.note_count}</span>
+                                <button
+                                  onClick={(e) => handleDeleteFolder(e, folder)}
+                                  className="opacity-0 group-hover:opacity-100 text-xs transition-opacity"
+                                  style={{ color: '#F43F5E', background: 'none', border: 'none', cursor: 'pointer' }}
+                                >✕</button>
+                              </div>
+                            </motion.div>
+                          </AnimatedItem>
                         );
                       })
                     )}
@@ -392,21 +409,28 @@ export default function Sidebar() {
                     </span>
                   </motion.div>
 
-                  {folders.map((folder) => {
+                  {folders.map((folder, index) => {
                     const active = selectedFolder?.id === folder.id && isActive('/graph');
                     return (
-                      <motion.div key={folder.id} whileHover={{ x: 4 }}
-                        onClick={() => handleGraphClick(folder)}
-                        className="flex items-center gap-2.5 py-2 rounded-md cursor-pointer p-2.5 m-1.5"
-                        style={activeBarStyle(active)}
-                      >
-                        <span style={{ color: folder.color, fontSize: '14px', display: 'flex' }}>
-                          {renderFolderIcon(folder.icon)}
-                        </span>
-                        <span className="text-sm truncate" style={{ color: active ? 'var(--text-primary)' : 'var(--text-muted)' }}>
-                          {folder.name}
-                        </span>
-                      </motion.div>
+                      <AnimatedItem key={folder.id} index={index + 1}>
+                        <motion.div
+                          whileHover={{ x: 4 }}
+                          onClick={() => handleGraphClick(folder)}
+                          className="flex items-center gap-2.5 rounded-md cursor-pointer"
+                          style={{
+                            ...activeBarStyle(active),
+                            width: '90%', alignSelf: 'center', display: 'flex',
+                            padding: '10px', paddingLeft: '15px', marginBottom: '2px',
+                          }}
+                        >
+                          <span style={{ color: folder.color, fontSize: '14px', display: 'flex' }}>
+                            {renderFolderIcon(folder.icon)}
+                          </span>
+                          <span className="text-sm truncate" style={{ color: active ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                            {folder.name}
+                          </span>
+                        </motion.div>
+                      </AnimatedItem>
                     );
                   })}
                 </div>

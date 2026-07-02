@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import ReactFlow, {
   Background,
   useNodesState, useEdgesState,
@@ -77,6 +77,117 @@ function GraphInner() {
   const [aiSummary, setAiSummary] = useState<string | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
+
+  const rawNotesRef = useRef<Note[]>([]);
+  const rawConnectionsRef = useRef<Connection[]>([]);
+  
+  useEffect(() => {
+    rawNotesRef.current = rawNotes;
+    rawConnectionsRef.current = rawConnections;
+  }, [rawNotes, rawConnections]);
+
+  const [timelineMode, setTimelineMode] = useState(false);
+  const [timelineIndex, setTimelineIndex] = useState(0);
+  const [timelineNodes, setTimelineNodes] = useState<Node[]>([]);
+  const [timelineEdges, setTimelineEdges] = useState<Edge[]>([]);
+
+  const buildTimeline = (notesList: Note[], connectionsList: Connection[]) => {
+    // Sort by created_at
+    const sorted = [...notesList].sort(
+      (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    );
+
+    // Build all nodes but start hidden
+    const angleStep = (2 * Math.PI) / Math.max(sorted.length - 1, 1);
+    const radius = 320;
+    const cx = 500;
+    const cy = 400;
+    let angleIndex = 0;
+
+    const allNodes: Node[] = sorted.map((note, i) => {
+      const randomRadius = radius + (Math.random() - 0.5) * 80;
+      const randomAngleOffset = (Math.random() - 0.5) * 0.3;
+      const isCentral = i === Math.floor(sorted.length / 2);
+
+      return {
+        id: note.id,
+        position: isCentral
+          ? { x: cx, y: cy }
+          : {
+              x: cx + randomRadius * Math.cos(angleStep * angleIndex + randomAngleOffset),
+              y: cy + randomRadius * Math.sin(angleStep * angleIndex++ + randomAngleOffset),
+            },
+        data: {
+          label: note.title,
+          type: note.type,
+          created_at: note.created_at,
+          index: i,
+        },
+        style: {
+          opacity: 0, // start hidden
+          background: TYPE_BG[note.type] || 'rgba(17,24,39,0.8)',
+          border: `1px solid ${TYPE_BORDER[note.type] || '#1E293B'}`,
+          borderRadius: '10px',
+          color: 'var(--text-primary)',
+          fontSize: '12px',
+          padding: '8px 14px',
+          cursor: 'pointer',
+          maxWidth: '160px',
+          backdropFilter: 'blur(10px)',
+          transition: 'opacity 0.5s, transform 0.5s',
+        },
+      };
+    });
+
+    setTimelineNodes(allNodes);
+    setTimelineEdges(connectionsList.map(conn => ({
+      id: conn.id,
+      source: conn.note_from,
+      target: conn.note_to,
+      style: { opacity: 0, stroke: `rgba(6,182,212,0.5)`, strokeWidth: 1.5 },
+    })));
+    setTimelineIndex(0);
+  };
+
+  useEffect(() => {
+    if (!timelineMode || timelineNodes.length === 0) return;
+    if (timelineIndex >= timelineNodes.length) return;
+
+    const timer = setTimeout(() => {
+      // Show next node
+      setTimelineNodes(prev => prev.map((node, i) => {
+        if (i === timelineIndex) {
+          return {
+            ...node,
+            style: { ...node.style, opacity: 1 },
+          };
+        }
+        return node;
+      }));
+
+      // Show edges connected to this node after it appears
+      const currentNote = rawNotesRef.current
+        .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+        [timelineIndex];
+
+      if (currentNote) {
+        setTimelineEdges(prev => prev.map(edge => {
+          const shouldShow = edge.source === currentNote.id || edge.target === currentNote.id;
+          // Only show if the other node is already visible
+          const otherNodeId = edge.source === currentNote.id ? edge.target : edge.source;
+          const otherNodeIndex = timelineNodes.findIndex(n => n.id === otherNodeId);
+          if (shouldShow && otherNodeIndex < timelineIndex) {
+            return { ...edge, style: { ...edge.style, opacity: 1 } };
+          }
+          return edge;
+        }));
+      }
+
+      setTimelineIndex(prev => prev + 1);
+    }, 600); // 600ms between each note appearing
+
+    return () => clearTimeout(timer);
+  }, [timelineMode, timelineIndex, timelineNodes.length]);
 
   const toggleType = (type: string) => {
     setActiveTypes(prev =>
@@ -373,10 +484,10 @@ function GraphInner() {
           </div>
         ) : (
           <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
+            nodes={timelineMode ? timelineNodes : nodes}
+            edges={timelineMode ? timelineEdges : edges}
+            onNodesChange={timelineMode ? undefined : onNodesChange}
+            onEdgesChange={timelineMode ? undefined : onEdgesChange}
             onNodeClick={(_, node) => navigate(`/notes/${node.id}`)}
             fitView
             style={{ background: 'transparent' }}
@@ -433,6 +544,64 @@ function GraphInner() {
         ))}
       </div>
 
+      {/* Timeline Progress Bar */}
+      {timelineMode && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          style={{
+            position: 'absolute', bottom: 80, left: '50%',
+            transform: 'translateX(-50%)', zIndex: 2,
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px',
+          }}
+        >
+          {/* Progress bar */}
+          <div style={{
+            width: '300px', height: '3px', borderRadius: '999px',
+            background: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+            overflow: 'hidden',
+          }}>
+            <motion.div
+              style={{
+                height: '100%', background: '#8B5CF6', borderRadius: '999px',
+                width: `${(timelineIndex / Math.max(timelineNodes.length, 1)) * 100}%`,
+              }}
+              transition={{ duration: 0.5 }}
+            />
+          </div>
+
+          {/* Current note timestamp */}
+          <div className="glass-btn" style={{ padding: '6px 16px', borderRadius: '999px', fontSize: '11px' }}>
+            {timelineIndex < timelineNodes.length ? (
+              <span style={{ color: '#8B5CF6' }}>
+                {timelineIndex + 1} / {timelineNodes.length} · {
+                  rawNotesRef.current
+                    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+                    [timelineIndex] && new Date(
+                      rawNotesRef.current
+                        .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+                        [timelineIndex].created_at
+                    ).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                }
+              </span>
+            ) : (
+              <span style={{ color: '#10B981' }}>✓ Timeline complete</span>
+            )}
+          </div>
+
+          {/* Speed control */}
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              onClick={() => setTimelineIndex(0)}
+              className="glass-btn"
+              style={{ padding: '4px 12px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer' }}
+            >
+              ↩ Restart
+            </button>
+          </div>
+        </motion.div>
+      )}
+
       {/* Navigation buttons */}
       <div style={{
         position: 'absolute', top: 24, right: 24, zIndex: 2,
@@ -447,6 +616,28 @@ function GraphInner() {
           }}
         >
           ← Dashboard
+        </button>
+        <button
+          onClick={() => {
+            if (!timelineMode) {
+              buildTimeline(rawNotesRef.current, rawConnectionsRef.current);
+              setTimelineMode(true);
+            } else {
+              setTimelineMode(false);
+              setTimelineIndex(0);
+              buildGraph(rawNotesRef.current, rawConnectionsRef.current, isDark);
+            }
+          }}
+          className="glass-btn"
+          style={{
+            borderRadius: '8px', padding: '8px 14px',
+            fontSize: '13px', cursor: 'pointer',
+            background: timelineMode ? 'rgba(139,92,246,0.3)' : undefined,
+            borderColor: timelineMode ? 'rgba(139,92,246,0.5)' : undefined,
+            color: timelineMode ? '#8B5CF6' : undefined,
+          }}
+        >
+          {timelineMode ? '⏸ Exit Timeline' : '⏵ Timeline'}
         </button>
         <button
           onClick={handleReorganise}

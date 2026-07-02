@@ -8,6 +8,7 @@ class NoteInput(BaseModel):
     id: str
     title: str
     content: str
+    tags: list[str] = []
 
 class SimilarityRequest(BaseModel):
     target: NoteInput
@@ -24,6 +25,8 @@ def generate(note: NoteInput):
 @router.post("/similar")
 def find_similar(request: SimilarityRequest):
     target_text = f"{request.target.title}. {request.target.content}"
+    if request.target.tags:
+        target_text += f". Tags: {', '.join(request.target.tags)}"
     target_embedding = generate_embedding(target_text)
 
     results = []
@@ -31,6 +34,8 @@ def find_similar(request: SimilarityRequest):
         if candidate.id == request.target.id:
             continue
         candidate_text = f"{candidate.title}. {candidate.content}"
+        if candidate.tags:
+            candidate_text += f". Tags: {', '.join(candidate.tags)}"
         candidate_embedding = generate_embedding(candidate_text)
         score = cosine_similarity(target_embedding, candidate_embedding)
         if score >= request.threshold:
