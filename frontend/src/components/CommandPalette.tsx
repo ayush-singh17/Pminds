@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useThemeStore } from '../store/themeStore';
 import { getNotes } from '../api/notes';
 import { getFolders } from '../api/folders';
 import type { Note, Folder } from '../types';
@@ -24,6 +25,7 @@ const TYPE_COLORS: Record<string, string> = {
 
 export default function CommandPalette() {
   const navigate = useNavigate();
+  const { isDark } = useThemeStore();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Result[]>([]);
@@ -150,16 +152,25 @@ export default function CommandPalette() {
               onClick={e => e.stopPropagation()}
               style={{
                 width: '100%', maxWidth: '560px',
-                background: '#111827', border: '1px solid #1E293B',
-                borderRadius: '12px', overflow: 'hidden',
+                background: isDark
+                  ? 'linear-gradient(180deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.04) 100%)'
+                  : 'linear-gradient(180deg, rgba(255,255,255,0.7) 0%, rgba(226,226,214,0.6) 100%)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                border: isDark ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(0,0,0,0.08)',
+                borderRadius: '16px', overflow: 'hidden',
+                boxShadow: isDark
+                  ? '0 24px 64px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1)'
+                  : '0 24px 64px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.9)',
               }}
             >
               {/* Search input */}
               <div style={{
                 display: 'flex', alignItems: 'center', gap: '12px',
-                padding: '16px', borderBottom: '1px solid #1E293B',
+                padding: '18px 20px',
+                borderBottom: isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.06)',
               }}>
-                <span style={{ color: '#94A3B8', fontSize: '16px' }}>⌘</span>
+                <span style={{ color: isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)', fontSize: '16px' }}>⌘</span>
                 <input
                   ref={inputRef}
                   value={query}
@@ -168,12 +179,16 @@ export default function CommandPalette() {
                   placeholder="Search notes, folders..."
                   style={{
                     flex: 1, background: 'none', border: 'none',
-                    outline: 'none', color: '#F8FAFC', fontSize: '14px',
+                    outline: 'none',
+                    color: 'var(--text-primary)',
+                    fontSize: '15px',
                   }}
                 />
                 <kbd style={{
-                  background: '#1E293B', color: '#94A3B8',
-                  fontSize: '11px', padding: '2px 6px', borderRadius: '4px',
+                  background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+                  color: 'var(--text-muted)',
+                  fontSize: '11px', padding: '4px 8px',
+                  borderRadius: '6px', border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.08)',
                 }}>
                   ESC
                 </kbd>
@@ -192,9 +207,10 @@ export default function CommandPalette() {
                   <>
                     {!query && (
                       <p style={{
-                        color: '#94A3B8', fontSize: '11px',
-                        padding: '10px 16px 4px',
-                        textTransform: 'uppercase', letterSpacing: '0.05em',
+                        color: 'var(--text-muted)', fontSize: '10px',
+                        padding: '12px 20px 4px',
+                        textTransform: 'uppercase', letterSpacing: '0.08em',
+                        fontWeight: 700,
                       }}>
                         Recent
                       </p>
@@ -204,40 +220,43 @@ export default function CommandPalette() {
                         key={result.id}
                         onClick={result.action}
                         style={{
-                          display: 'flex', alignItems: 'center', gap: '12px',
-                          padding: '12px 16px', cursor: 'pointer',
-                          background: i === selected ? '#1E293B' : 'transparent',
+                          display: 'flex', alignItems: 'center', gap: '14px',
+                          padding: '14px 20px', cursor: 'pointer',
+                          background: i === selected
+                            ? (isDark ? 'rgba(6,182,212,0.1)' : 'rgba(6,182,212,0.08)')
+                            : 'transparent',
+                          borderLeft: i === selected ? '3px solid #06B6D4' : '3px solid transparent',
+                          transition: 'all 0.1s',
                         }}
                         onMouseEnter={() => setSelected(i)}
                       >
                         <span style={{
                           color: result.color,
                           fontSize: result.type === 'folder' ? '14px' : '8px',
+                          flexShrink: 0,
                         }}>
                           {result.type === 'folder' ? '📁' : '●'}
                         </span>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <p style={{
-                            color: '#F8FAFC', fontSize: '13px',
+                            color: 'var(--text-primary)', fontSize: '14px',
                             fontWeight: 500, marginBottom: '2px',
-                            whiteSpace: 'nowrap', overflow: 'hidden',
-                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                           }}>
                             {result.title}
                           </p>
                           <p style={{
-                            color: '#94A3B8', fontSize: '11px',
-                            whiteSpace: 'nowrap', overflow: 'hidden',
-                            textOverflow: 'ellipsis',
+                            color: 'var(--text-muted)', fontSize: '11px',
+                            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                           }}>
                             {result.subtitle}
                           </p>
                         </div>
                         <span style={{
-                          color: result.color, fontSize: '11px',
+                          color: result.color, fontSize: '10px', fontWeight: 600,
                           background: result.color + '22',
-                          padding: '2px 8px', borderRadius: '999px',
-                          flexShrink: 0,
+                          padding: '3px 10px', borderRadius: '999px', flexShrink: 0,
+                          border: `1px solid ${result.color}44`,
                         }}>
                           {result.type}
                         </span>
@@ -249,7 +268,8 @@ export default function CommandPalette() {
 
               {/* Footer */}
               <div style={{
-                padding: '10px 16px', borderTop: '1px solid #1E293B',
+                padding: '12px 20px',
+                borderTop: isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.06)',
                 display: 'flex', gap: '16px',
               }}>
                 {[
@@ -259,12 +279,14 @@ export default function CommandPalette() {
                 ].map(hint => (
                   <div key={hint.key} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <kbd style={{
-                      background: '#1E293B', color: '#94A3B8',
-                      fontSize: '10px', padding: '2px 6px', borderRadius: '4px',
+                      background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+                      color: 'var(--text-muted)', fontSize: '10px',
+                      padding: '3px 7px', borderRadius: '5px',
+                      border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.08)',
                     }}>
                       {hint.key}
                     </kbd>
-                    <span style={{ color: '#94A3B8', fontSize: '11px' }}>{hint.label}</span>
+                    <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>{hint.label}</span>
                   </div>
                 ))}
               </div>

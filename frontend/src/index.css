@@ -1,26 +1,26 @@
 @import "tailwindcss";
 
-body {
-  background-color: var(--bg);
-  color: var(--text-primary);
-  font-family: 'Lekton', monospace;
-  transition: background-color 0.2s, color 0.2s;
-}
-
 :root {
-  --bg: black;
+  --bg: #0A0F1E;
   --surface: #111827;
   --border: #1E293B;
   --sidebar: #0D1424;
-  --text-primary: #F8FAFC;
+  --text-primary: #e2e2d6;
   --text-muted: #94A3B8;
-  --input-bg: black;
+  --input-bg: #0A0F1E;
 }
 
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text-primary);
+  font-family: 'Lekton', monospace;
 }
 
 ::-webkit-scrollbar {
@@ -108,38 +108,32 @@ body {
 
 /* Light mode glass */
 body.light .glass-btn {
-  background: rgba(255, 255, 255, 0.6) !important;
+  background: rgba(255, 255, 255, 0.4) !important;
   border: 1px solid rgba(0, 0, 0, 0.08) !important;
-  color: var(--text-primary) !important;
+  color: #1a1a1a !important;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08),
               0 2px 8px rgba(0, 0, 0, 0.05),
-              inset 0 1px 0 rgba(255, 255, 255, 0.9);
+              inset 0 1px 0 rgba(255, 255, 255, 0.8);
 }
 
 body.light .glass-btn:hover {
-  background: rgba(255, 255, 255, 0.8) !important;
+  background: rgba(255, 255, 255, 0.6) !important;
   border-color: rgba(0, 0, 0, 0.12) !important;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12),
-              0 4px 12px rgba(0, 0, 0, 0.08),
-              inset 0 1px 0 rgba(255, 255, 255, 1);
 }
 
-/* Light mode minimap and controls */
 body.light .react-flow__minimap {
-  background: rgba(255, 255, 255, 0.6) !important;
+  background: rgba(255, 255, 255, 0.4) !important;
   border: 1px solid rgba(0, 0, 0, 0.08) !important;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08) !important;
 }
 
 body.light .react-flow__controls {
-  background: rgba(255, 255, 255, 0.6) !important;
+  background: rgba(255, 255, 255, 0.4) !important;
   border: 1px solid rgba(0, 0, 0, 0.08) !important;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08) !important;
 }
 
 body.light .react-flow__controls-button {
   border-bottom: 1px solid rgba(0, 0, 0, 0.06) !important;
-  fill: #64748B !important;
+  fill: #555550 !important;
 }
 
 .react-flow__minimap {

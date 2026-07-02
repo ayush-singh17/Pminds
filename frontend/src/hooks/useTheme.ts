@@ -21,13 +21,13 @@ export const useTheme = () => {
     } else {
       body.classList.remove('dark');
       body.classList.add('light');
-      root.style.setProperty('--bg', '#F8FAFC');
-      root.style.setProperty('--surface', '#FFFFFF');
-      root.style.setProperty('--border', '#E2E8F0');
-      root.style.setProperty('--sidebar', '#F1F5F9');
-      root.style.setProperty('--text-primary', '#0F172A');
-      root.style.setProperty('--text-muted', '#64748B');
-      root.style.setProperty('--input-bg', '#F8FAFC');
+      root.style.setProperty('--bg', '#e2e2d6');
+      root.style.setProperty('--surface', '#d8d8cc');
+      root.style.setProperty('--border', '#c8c8bc');
+      root.style.setProperty('--sidebar', '#d4d4c8');
+      root.style.setProperty('--text-primary', '#1a1a1a');
+      root.style.setProperty('--text-muted', '#555550');
+      root.style.setProperty('--input-bg', '#e8e8dc');
     }
   }, [isDark]);
 

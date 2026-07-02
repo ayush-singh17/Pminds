@@ -6,22 +6,32 @@ import { useAuthStore } from '../store/authStore';
 
 export const useInitApp = () => {
   const { isAuthenticated } = useAuthStore();
-  const { setFolders, setTags } = useNoteStore();
+  const { setFolders, setTags, isStale, setLastFetched } = useNoteStore();
 
   useEffect(() => {
     if (!isAuthenticated) return;
 
     const init = async () => {
       try {
-        const [foldersData, tagsData] = await Promise.all([
-          getFolders(),
-          getTags(),
-        ]);
-        setFolders(foldersData);
-        setTags(tagsData);
-      } catch {
-        // silently fail
-      }
+        const promises = [];
+        if (isStale('folders')) {
+          promises.push(
+            getFolders().then(data => {
+              setFolders(data);
+              setLastFetched('folders');
+            })
+          );
+        }
+        if (isStale('tags')) {
+          promises.push(
+            getTags().then(data => {
+              setTags(data);
+              setLastFetched('tags');
+            })
+          );
+        }
+        await Promise.all(promises);
+      } catch {}
     };
 
     init();

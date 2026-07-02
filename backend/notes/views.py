@@ -31,56 +31,9 @@ class NoteListCreateView(generics.ListCreateAPIView):
 
     def perform_create(self, serializer):
         note = serializer.save(user=self.request.user)
-        # Auto-suggest connections after creation
-        self._suggest_connections(note)
-
-    def _suggest_connections(self, target):
-        from connections.models import Connection
-        from django.db import models as db_models
-        import httpx
-        from django.conf import settings
-
-        candidates = Note.objects.filter(user=target.user).exclude(id=target.id)
-        if not candidates.exists():
-            return
-
-        payload = {
-            'target': {
-                'id': str(target.id),
-                'title': target.title,
-                'content': target.content,
-            },
-            'candidates': [
-                {'id': str(n.id), 'title': n.title, 'content': n.content}
-                for n in candidates
-            ],
-            'threshold': 0.35,
-        }
-
-        try:
-            resp = httpx.post(
-                f"{settings.AI_SERVICE_URL}/connections/suggest",
-                json=payload,
-                timeout=30
-            )
-            suggestions = resp.json().get('suggestions', [])
-            for s in suggestions:
-                exists = Connection.objects.filter(
-                    user=target.user
-                ).filter(
-                    db_models.Q(note_from=target, note_to_id=s['id']) |
-                    db_models.Q(note_from_id=s['id'], note_to=target)
-                ).exists()
-                if not exists:
-                    Connection.objects.create(
-                        user=target.user,
-                        note_from=target,
-                        note_to_id=s['id'],
-                        strength=s['strength'],
-                        ai_generated=True,
-                    )
-        except Exception:
-            pass  # Don't fail note creation if AI is down
+        # Run in background — don't block the response
+        from notes.tasks import suggest_connections_async
+        suggest_connections_async.delay(str(note.id), str(self.request.user.id))
 
 class NoteDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = NoteSerializer
@@ -91,55 +44,9 @@ class NoteDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def perform_update(self, serializer):
         note = serializer.save()
-        self._suggest_connections(note)
-
-    def _suggest_connections(self, target):
-        from connections.models import Connection
-        from django.db import models as db_models
-        import httpx
-        from django.conf import settings
-
-        candidates = Note.objects.filter(user=target.user).exclude(id=target.id)
-        if not candidates.exists():
-            return
-
-        payload = {
-            'target': {
-                'id': str(target.id),
-                'title': target.title,
-                'content': target.content,
-            },
-            'candidates': [
-                {'id': str(n.id), 'title': n.title, 'content': n.content}
-                for n in candidates
-            ],
-            'threshold': 0.35,
-        }
-
-        try:
-            resp = httpx.post(
-                f"{settings.AI_SERVICE_URL}/connections/suggest",
-                json=payload,
-                timeout=30
-            )
-            suggestions = resp.json().get('suggestions', [])
-            for s in suggestions:
-                exists = Connection.objects.filter(
-                    user=target.user
-                ).filter(
-                    db_models.Q(note_from=target, note_to_id=s['id']) |
-                    db_models.Q(note_from_id=s['id'], note_to=target)
-                ).exists()
-                if not exists:
-                    Connection.objects.create(
-                        user=target.user,
-                        note_from=target,
-                        note_to_id=s['id'],
-                        strength=s['strength'],
-                        ai_generated=True,
-                    )
-        except Exception:
-            pass  # Don't fail note creation if AI is down
+        # Run in background — don't block the response
+        from notes.tasks import suggest_connections_async
+        suggest_connections_async.delay(str(note.id), str(self.request.user.id))
 
 from django_ratelimit.decorators import ratelimit
 from django.utils.decorators import method_decorator
@@ -156,7 +63,7 @@ class NoteSuggestConnectionsView(generics.GenericAPIView):
             return Response({'error': 'Note not found'}, status=404)
 
         # Get all other notes
-        candidates = Note.objects.filter(user=request.user).exclude(id=pk)
+        candidates = Note.objects.filter(user=request.user).exclude(id=pk).prefetch_related('tags')
         if not candidates.exists():
             return Response({'connections': []})
 
@@ -165,12 +72,14 @@ class NoteSuggestConnectionsView(generics.GenericAPIView):
                 'id': str(target.id),
                 'title': target.title,
                 'content': target.content,
+                'tags': [tag.name for tag in target.tags.all()],
             },
             'candidates': [
                 {
                     'id': str(n.id),
                     'title': n.title,
                     'content': n.content,
+                    'tags': [tag.name for tag in n.tags.all()],
                 }
                 for n in candidates
             ],
