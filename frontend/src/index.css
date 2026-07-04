@@ -155,3 +155,21 @@ body.light .react-flow__controls-button {
   fill: var(--text-muted) !important;
   font-size: 10px !important;
 }
+
+@keyframes dashdraw {
+  to { stroke-dashoffset: -9; }
+}
+
+/* ReactFlow node handles - visible on hover for manual edge creation */
+.react-flow__handle {
+  width: 8px !important;
+  height: 8px !important;
+  background: #06b6d4 !important;
+  border: 2px solid var(--bg, #0A0F1E) !important;
+  opacity: 0;
+  transition: opacity 0.2s !important;
+}
+
+.react-flow__node:hover .react-flow__handle {
+  opacity: 1;
+}

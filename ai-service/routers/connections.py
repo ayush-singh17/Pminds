@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
 from services.embedding_service import generate_embedding, cosine_similarity
-from services.groq_service import explain_connection
+from services.groq_service import get_connection_reason
 
 router = APIRouter()
 
@@ -21,8 +21,8 @@ class BulkConnectionRequest(BaseModel):
     threshold: float = 0.5
 
 @router.post("/explain")
-def explain(request: ConnectionRequest):
-    reason = explain_connection(
+async def explain(request: ConnectionRequest):
+    reason = await get_connection_reason(
         request.note1.title, request.note1.content,
         request.note2.title, request.note2.content,
     )

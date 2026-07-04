@@ -12,7 +12,7 @@ import { GiBullseye, GiBigWave } from 'react-icons/gi';
 import { SiPolestar } from 'react-icons/si';
 
 const FOLDER_COLORS = [
-  '#06B6D4', '#10B981', '#F59E0B', '#F43F5E',
+  '#06b6d4', '#10B981', '#F59E0B', '#F43F5E',
   '#8B5CF6', '#EC4899', '#14B8A6', '#F97316',
 ];
 
@@ -54,7 +54,7 @@ export default function Sidebar() {
   } = useNoteStore();
 
   const [showCreate, setShowCreate] = useState(false);
-  const [form, setForm] = useState({ name: '', icon: 'folder', color: '#06B6D4' });
+  const [form, setForm] = useState({ name: '', icon: 'folder', color: '#06b6d4' });
   const [creating, setCreating] = useState(false);
   const [foldersExpanded, setFoldersExpanded] = useState(true);
   const [graphsExpanded, setGraphsExpanded] = useState(true);
@@ -66,7 +66,7 @@ export default function Sidebar() {
       const folder = await createFolder(form);
       addFolder(folder);
       setShowCreate(false);
-      setForm({ name: '', icon: 'folder', color: '#06B6D4' });
+      setForm({ name: '', icon: 'folder', color: '#06b6d4' });
       setSelectedFolder(folder);
       navigate('/notes');
     } finally {
@@ -210,7 +210,7 @@ export default function Sidebar() {
                   <button
                     onClick={() => setShowCreate(!showCreate)}
                     className="flex items-center gap-2 px-3 py-1.5 text-xs w-full text-left mb-1"
-                    style={{ color: '#06B6D4', 
+                    style={{ color: '#06b6d4', 
                       width:'95%',display:'flex',
                       padding:'10px',paddingLeft:'5px'
                     }}
@@ -254,7 +254,7 @@ export default function Sidebar() {
                                     : 'transparent',
                                   border: 'none', cursor: 'pointer',
                                   padding: '6px', borderRadius: '6px',
-                                  color: form.icon === key ? '#06B6D4' : 'var(--text-muted)',
+                                  color: form.icon === key ? '#06b6d4' : 'var(--text-muted)',
                                   fontSize: '16px',
                                   display: 'flex', alignItems: 'center',
                                 }}
@@ -279,7 +279,7 @@ export default function Sidebar() {
                           </div>
                           <button type="submit" disabled={creating}
                             className="w-full py-1.5 rounded text-xs font-medium"
-                            style={{ background: '#06B6D4', color: '#0A0F1E', border: 'none', cursor: 'pointer',
+                            style={{ background: '#06b6d4', color: '#0A0F1E', border: 'none', cursor: 'pointer',
                               display:'flex',alignSelf:'center',
                               padding:'8px',paddingLeft:'10px',
                               marginTop:'10px',justifyContent:'center'
@@ -403,7 +403,7 @@ export default function Sidebar() {
                     className="flex items-center gap-2.5 py-2 rounded-md cursor-pointer"
                     style={activeBarStyle(isActive('/graph') && (!selectedFolder || selectedFolder.id !== 'inbox'))}
                   >
-                    <span style={{ color: '#06B6D4', fontSize: '11px' }}>◎</span>
+                    <span style={{ color: '#06b6d4', fontSize: '11px' }}>◎</span>
                     <span className="text-sm" style={{ color: isActive('/graph') && (!selectedFolder || selectedFolder.id !== 'inbox') ? 'var(--text-primary)' : 'var(--text-muted)' }}>
                       Lose Thoughts
                     </span>

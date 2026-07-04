@@ -8,7 +8,7 @@ import { useThemeStore } from '../store/themeStore';
 import type { Note } from '../types';
 
 const TYPE_COLORS: Record<string, string> = {
-  thought: '#06B6D4',
+  thought: '#06b6d4',
   quote: '#10B981',
   article: '#F59E0B',
   question: '#F43F5E',
@@ -168,13 +168,13 @@ export default function Dashboard() {
           >
             <div style={{
               position: 'absolute', top: 0, left: '15%', right: '15%', height: '1px',
-              background: 'linear-gradient(90deg, transparent, #06B6D4, transparent)',
+              background: 'linear-gradient(90deg, transparent, #06b6d4, transparent)',
             }} />
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px' }}>
-              <span style={{ color: '#06B6D4', fontSize: '18px', marginTop: '2px' }}>✦</span>
+              <span style={{ color: '#06b6d4', fontSize: '18px', marginTop: '2px' }}>✦</span>
               <div>
                 <p style={{
-                  color: '#06B6D4', fontSize: '10px', fontWeight: 700,
+                  color: '#06b6d4', fontSize: '10px', fontWeight: 700,
                   textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '10px',
                 }}>
                   AI Insight
@@ -183,7 +183,7 @@ export default function Dashboard() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <div style={{
                       width: '6px', height: '6px', borderRadius: '50%',
-                      background: '#06B6D4', animation: 'pulse 1.5s infinite',
+                      background: '#06b6d4', animation: 'pulse 1.5s infinite',
                     }} />
                     <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>
                       Analyzing your thoughts...
@@ -209,7 +209,7 @@ export default function Dashboard() {
               Recent
             </p>
             <button onClick={() => navigate('/recent')}
-              style={{ color: '#06B6D4', fontSize: '12px', background: 'none', border: 'none', cursor: 'pointer' }}>
+              style={{ color: '#06b6d4', fontSize: '12px', background: 'none', border: 'none', cursor: 'pointer' }}>
               View all →
             </button>
           </div>
@@ -229,7 +229,7 @@ export default function Dashboard() {
               </p>
               <button onClick={() => navigate('/notes')}
                 className="text-sm px-4 py-2 rounded-lg"
-                style={{ background: '#06B6D4', color: '#0A0F1E', fontWeight: 600 }}>
+                style={{ background: '#06b6d4', color: '#0A0F1E', fontWeight: 600 }}>
                 Add your first note
               </button>
             </div>
@@ -248,7 +248,7 @@ export default function Dashboard() {
                     padding: '14px 20px', cursor: 'pointer',
                     background: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
                     border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.1)',
-                    borderLeft: `3px solid ${TYPE_COLORS[note.type] || '#06B6D4'}`,
+                    borderLeft: `3px solid ${TYPE_COLORS[note.type] || '#06b6d4'}`,
                     borderRadius: '10px', transition: 'background 0.15s',
                   }}
                   onMouseEnter={(e) => e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)'}

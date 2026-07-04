@@ -1,15 +1,19 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import ReactFlow, {
   Background,
   useNodesState, useEdgesState,
   MiniMap, Controls,
-  useReactFlow, ReactFlowProvider
+  useReactFlow, ReactFlowProvider,
+  EdgeLabelRenderer, getBezierPath,
 } from 'reactflow';
-import type { Node, Edge } from 'reactflow';
+import type { Node, Edge, EdgeProps } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { getNotes, createNote, suggestConnections, getPatternInsight } from '../api/notes';
-import { getConnections } from '../api/connections';
+import { getNotes, createNote, suggestConnections, getPatternInsight, getClusterLabel } from '../api/notes';
+import { getConnections, createConnection } from '../api/connections';
+import { detectClusters, type Cluster } from '../utils/clusterDetect';
+import { findPath } from '../utils/pathFind';
 import DotField from '../components/DotField/DotField';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNoteStore } from '../store/noteStore';
@@ -17,7 +21,7 @@ import { useThemeStore } from '../store/themeStore';
 import type { Note, Connection } from '../types';
 
 const TYPE_COLORS: Record<string, string> = {
-  thought: '#06B6D4',
+  thought: '#06b6d4',
   quote: '#10B981',
   article: '#F59E0B',
   question: '#F43F5E',
@@ -41,7 +45,7 @@ const TYPE_BG_RGB: Record<string, string> = {
 };
 
 const TYPE_BORDER: Record<string, string> = {
-  thought: '#06B6D4',
+  thought: '#06b6d4',
   quote: '#10B981',
   article: '#F59E0B',
   question: '#F43F5E',
@@ -49,6 +53,116 @@ const TYPE_BORDER: Record<string, string> = {
 };
 
 const TYPES = ['thought', 'quote', 'article', 'question', 'idea'];
+
+const ReasonEdge = ({
+  id, sourceX, sourceY, targetX, targetY,
+  sourcePosition, targetPosition, data, style, markerEnd,
+}: EdgeProps) => {
+  const [showReason, setShowReason] = useState(false);
+  const [edgePath, labelX, labelY] = getBezierPath({
+    sourceX, sourceY, sourcePosition,
+    targetX, targetY, targetPosition,
+  });
+  const isStrong = (data?.strength || 0) > 0.7;
+
+  return (
+    <>
+      {/* Visible path */}
+      <path
+        d={edgePath}
+        fill="none"
+        style={{
+          ...style,
+          ...(isStrong ? {
+            strokeDasharray: '6 3',
+            animation: 'dashdraw 0.5s linear infinite',
+          } : {}),
+        }}
+        markerEnd={markerEnd}
+      />
+      {/* Invisible thick path for easier click — must be last so it's on top */}
+      <path
+        d={edgePath}
+        fill="none"
+        stroke="transparent"
+        strokeWidth={20}
+        onClick={(e) => { e.stopPropagation(); setShowReason(!showReason); }}
+        style={{ cursor: 'pointer' }}
+      />
+
+      {/* Reason tooltip on click */}
+      {showReason && data?.reason && (
+        <EdgeLabelRenderer>
+          <div
+            style={{
+              position: 'absolute',
+              transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
+              zIndex: 10,
+              maxWidth: '220px',
+            }}
+          >
+            <div
+              onClick={(e) => { e.stopPropagation(); setShowReason(false); }}
+              style={{
+                background: 'rgba(17,24,39,0.95)',
+                backdropFilter: 'blur(12px)',
+                border: '1px solid rgba(6,182,212,0.3)',
+                borderRadius: '10px',
+                padding: '10px 14px',
+                boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+                cursor: 'pointer',
+              }}
+            >
+              <p style={{
+                color: '#06B6D4', fontSize: '9px', fontWeight: 700,
+                textTransform: 'uppercase', letterSpacing: '0.1em',
+                marginBottom: '5px',
+              }}>
+                Why connected
+              </p>
+              <p style={{
+                color: '#e2e2d6', fontSize: '12px',
+                lineHeight: '1.6', fontStyle: 'italic',
+              }}>
+                "{data.reason}"
+              </p>
+              <p style={{
+                color: 'rgba(255,255,255,0.3)', fontSize: '10px',
+                marginTop: '6px',
+              }}>
+                {Math.round((data.strength || 0) * 100)}% match
+              </p>
+            </div>
+          </div>
+        </EdgeLabelRenderer>
+      )}
+
+      {/* Percentage label */}
+      {!showReason && data?.strength && (
+        <EdgeLabelRenderer>
+          <div
+            style={{
+              position: 'absolute',
+              transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
+              pointerEvents: 'none',
+            }}
+          >
+            <span style={{
+              background: 'rgba(17,24,39,0.8)',
+              border: '1px solid rgba(6,182,212,0.2)',
+              borderRadius: '4px', padding: '2px 6px',
+              color: 'rgba(255,255,255,0.5)', fontSize: '10px',
+            }}>
+              {Math.round(data.strength * 100)}%
+            </span>
+          </div>
+        </EdgeLabelRenderer>
+      )}
+    </>
+  );
+};
+
+const edgeTypes = { reason: ReasonEdge };
 
 function GraphInner() {
   const { fitView } = useReactFlow();
@@ -78,6 +192,20 @@ function GraphInner() {
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
 
+  const [clusters, setClusters] = useState<Cluster[]>([]);
+  const [clusterLabelsLoading, setClusterLabelsLoading] = useState(false);
+  const [orphanIds, setOrphanIds] = useState<string[]>([]);
+  const [pathMode, setPathMode] = useState(false);
+  const [pathStart, setPathStart] = useState<string | null>(null);
+  const [selectedPath, setSelectedPath] = useState<string[]>([]);
+  const [pathMessage, setPathMessage] = useState('');
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [connectionModal, setConnectionModal] = useState<{ source: string; target: string } | null>(null);
+  const [connectionForm, setConnectionForm] = useState({ reason: '', strength: 0.5 });
+  const [connectionCreating, setConnectionCreating] = useState(false);
+  const sortedTimelineNotes = useRef<Note[]>([]);
+  const lastClusterKeyRef = useRef('');
+
   const rawNotesRef = useRef<Note[]>([]);
   const rawConnectionsRef = useRef<Connection[]>([]);
   
@@ -96,6 +224,7 @@ function GraphInner() {
     const sorted = [...notesList].sort(
       (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
     );
+    sortedTimelineNotes.current = sorted;
 
     // Build all nodes but start hidden
     const angleStep = (2 * Math.PI) / Math.max(sorted.length - 1, 1);
@@ -166,9 +295,7 @@ function GraphInner() {
       }));
 
       // Show edges connected to this node after it appears
-      const currentNote = rawNotesRef.current
-        .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
-        [timelineIndex];
+      const currentNote = sortedTimelineNotes.current[timelineIndex];
 
       if (currentNote) {
         setTimelineEdges(prev => prev.map(edge => {
@@ -220,11 +347,14 @@ function GraphInner() {
     if (rawNotes.length === 0) return;
     setSummaryLoading(true);
     setShowSummary(true);
+    setAiError(null);
     try {
       const insight = await getPatternInsight(
         rawNotes.map(n => ({ title: n.title, content: n.content }))
       );
       setAiSummary(insight);
+    } catch {
+      setAiError('Could not reach AI service. Please try again.');
     } finally {
       setSummaryLoading(false);
     }
@@ -238,7 +368,91 @@ function GraphInner() {
     setTimeout(() => fitView({ duration: 800, padding: 0.3 }), 150);
   };
 
+  const handleNodeClick = (_: any, node: Node) => {
+    if (pathMode) {
+      if (!pathStart) {
+        setPathStart(node.id);
+        setPathMessage('② Now click the destination note');
+        // Dim all other nodes
+        setNodes(prev => prev.map(n => ({
+          ...n,
+          style: {
+            ...n.style,
+            opacity: n.id === node.id ? 1 : 0.3,
+            border: n.id === node.id ? '2px solid #10B981' : n.style?.border,
+          }
+        })));
+      } else if (pathStart !== node.id) {
+        const path = findPath(pathStart, node.id, rawConnectionsRef.current);
+        setSelectedPath(path);
+
+        if (path.length > 0) {
+          setPathMessage(`Path found — ${path.length} steps`);
+          setNodes(prev => prev.map(n => ({
+            ...n,
+            style: {
+              ...n.style,
+              opacity: path.includes(n.id) ? 1 : 0.1,
+              border: path.includes(n.id) ? '2px solid #06B6D4' : n.style?.border,
+              boxShadow: path.includes(n.id) ? '0 0 20px rgba(6,182,212,0.5)' : 'none',
+            }
+          })));
+          setEdges(prev => prev.map(e => ({
+            ...e,
+            style: {
+              ...e.style,
+              opacity: (path.includes(e.source) && path.includes(e.target)) ? 1 : 0.05,
+              strokeWidth: (path.includes(e.source) && path.includes(e.target)) ? 3 : 1,
+              stroke: (path.includes(e.source) && path.includes(e.target)) ? '#06B6D4' : '#1E293B',
+            },
+            animated: path.includes(e.source) && path.includes(e.target),
+          })));
+        } else {
+          setPathMessage('No path found between these notes.');
+          buildGraph(rawNotesRef.current, rawConnectionsRef.current, isDark);
+        }
+        setPathStart(null);
+      }
+    } else {
+      const note = rawNotesRef.current.find(n => n.id === node.id);
+      if (note) {
+        setSelectedPanelNote(note);
+        setShowPanel(true);
+      }
+    }
+  };
+
   const buildGraph = (notesList: Note[], connectionsList: Connection[], dark: boolean) => {
+    // Detect orphans
+    const connectedIds = new Set<string>();
+    connectionsList.forEach(c => {
+      connectedIds.add(c.note_from);
+      connectedIds.add(c.note_to);
+    });
+    const orphans = notesList.filter(n => !connectedIds.has(n.id)).map(n => n.id);
+    setOrphanIds(orphans);
+
+    // Detect clusters (only re-label when data actually changes)
+    const detected = detectClusters(notesList, connectionsList);
+    const clusterDataKey = notesList.map(n => n.id).sort().join(',') + '|' + connectionsList.length;
+    if (clusterDataKey !== lastClusterKeyRef.current) {
+      lastClusterKeyRef.current = clusterDataKey;
+      setClusterLabelsLoading(true);
+      Promise.all(
+        detected.map(async (cluster) => {
+          const clusterNotes = notesList.filter(n => cluster.noteIds.includes(n.id));
+          let label = 'Ideas';
+          try {
+            label = await getClusterLabel(clusterNotes.map(n => ({ title: n.title })));
+          } catch {}
+          return { ...cluster, label };
+        })
+      ).then(labeled => {
+        setClusters(labeled);
+        setClusterLabelsLoading(false);
+      });
+    }
+
     const filteredNotes = notesList.filter(n => activeTypes.includes(n.type));
     const filteredConnections = connectionsList.filter(conn => {
       const fromNote = notesList.find(n => n.id === conn.note_from);
@@ -263,18 +477,28 @@ function GraphInner() {
     const cy = 400;
     let angleIndex = 0;
 
+    const positions: Record<string, { x: number; y: number }> = {};
+    filteredNotes.forEach((note) => {
+      const isCentral = note.id === centralNoteId;
+      if (isCentral) {
+        positions[note.id] = { x: cx, y: cy };
+      } else {
+        const randomRadius = radius + (Math.random() - 0.5) * 80;
+        const randomAngleOffset = (Math.random() - 0.5) * 0.3;
+        positions[note.id] = {
+          x: cx + randomRadius * Math.cos(angleStep * angleIndex + randomAngleOffset),
+          y: cy + randomRadius * Math.sin(angleStep * angleIndex++ + randomAngleOffset),
+        };
+      }
+    });
+
     const flowNodes: Node[] = filteredNotes.map((note) => {
       const isCentral = note.id === centralNoteId;
-      
-      const randomRadius = radius + (Math.random() - 0.5) * 80;
-      const randomAngleOffset = (Math.random() - 0.5) * 0.3;
+      const position = positions[note.id] || { x: 500, y: 400 };
 
-      const position = isCentral
-        ? { x: cx, y: cy }
-        : {
-            x: cx + randomRadius * Math.cos(angleStep * angleIndex + randomAngleOffset),
-            y: cy + randomRadius * Math.sin(angleStep * angleIndex++ + randomAngleOffset),
-          };
+      const isOrphan = orphans.includes(note.id);
+      const cluster = detected.find(c => c.noteIds.includes(note.id));
+      const clusterColor = cluster?.color || TYPE_BORDER[note.type] || '#1E293B';
 
       return {
         id: note.id,
@@ -284,9 +508,9 @@ function GraphInner() {
           background: `rgba(${TYPE_BG_RGB[note.type] || '6, 182, 212'}, ${dark ? 0.15 : 0.25})`,
           backdropFilter: 'blur(10px)',
           WebkitBackdropFilter: 'blur(10px)',
-          border: `2px solid ${TYPE_BORDER[note.type] || '#06B6D4'}`,
+          border: `2px solid ${TYPE_BORDER[note.type] || '#06b6d4'}`,
           borderRadius: '50%',
-          color: TYPE_BORDER[note.type] || '#06B6D4',
+          color: TYPE_BORDER[note.type] || '#06b6d4',
           fontSize: '13px',
           fontWeight: '600',
           padding: '20px',
@@ -301,8 +525,10 @@ function GraphInner() {
                       0 8px 32px rgba(0,0,0,0.3),
                       inset 0 1px 0 rgba(255,255,255,0.1)`,
         } : {
-          background: TYPE_BG[note.type] || 'rgba(17,24,39,0.8)',
-          border: `1px solid ${TYPE_BORDER[note.type] || '#1E293B'}`,
+          background: dark ? TYPE_BG[note.type] || 'rgba(17,24,39,0.8)' : TYPE_BG[note.type]?.replace('0.15', '0.25') || 'rgba(255,255,255,0.6)',
+          border: isOrphan
+            ? `2px dashed ${TYPE_BORDER[note.type]}66`
+            : `1px solid ${clusterColor}`,
           borderRadius: '10px',
           color: 'var(--text-primary)',
           fontSize: '12px',
@@ -310,43 +536,31 @@ function GraphInner() {
           cursor: 'pointer',
           maxWidth: '160px',
           backdropFilter: 'blur(10px)',
-          boxShadow: `0 4px 16px ${TYPE_BORDER[note.type]}22`,
+          opacity: isOrphan ? 0.5 : 1,
+          boxShadow: isOrphan ? 'none' : `0 0 12px ${clusterColor}22`,
         },
       };
     });
 
     const flowEdges: Edge[] = filteredConnections.map((conn) => {
       const strength = conn.strength || 0;
-      
-      // Map strength (0-1) to stroke width (1-4)
       const strokeWidth = 1 + strength * 3;
-      
-      // Map strength to opacity
       const opacity = 0.3 + strength * 0.7;
 
       return {
         id: conn.id,
         source: conn.note_from,
         target: conn.note_to,
+        type: 'reason',
         style: {
           stroke: `rgba(6, 182, 212, ${opacity})`,
           strokeWidth,
         },
-        animated: strength > 0.7, // animate strong connections
-        label: conn.strength ? `${Math.round(conn.strength * 100)}%` : '',
-        labelBgStyle: {
-          fill: dark ? 'rgba(17, 24, 39, 0.8)' : 'rgba(255, 255, 255, 0.8)',
-          fillOpacity: 1,
-          rx: 6,
-          ry: 6,
+
+        data: {
+          reason: conn.reason,
+          strength: conn.strength,
         },
-        labelStyle: {
-          fill: dark ? '#06B6D4' : '#0891B2',
-          fontSize: 10,
-          fontWeight: 600,
-        },
-        labelBgPadding: [6, 8] as [number, number],
-        labelBgBorderRadius: 6,
       };
     });
 
@@ -372,7 +586,9 @@ function GraphInner() {
       setShowCreateInPanel(false);
       setPanelForm({ title: '', content: '', type: 'thought', folder_ids: [] });
 
-      await suggestConnections(note.id);
+      try {
+        await suggestConnections(note.id);
+      } catch {}
 
       const newConns = await getConnections(selectedFolder?.id);
       setRawConnections(newConns);
@@ -392,9 +608,12 @@ function GraphInner() {
           setNotes(cached.notes);
           setRawNotes(cached.notes);
           setRawConnections(cached.connections);
+          rawNotesRef.current = cached.notes;
+          rawConnectionsRef.current = cached.connections;
           buildGraph(cached.notes, cached.connections, isDark);
           setLoading(false);
 
+          // refresh in background
           const params = selectedFolder?.id === 'inbox'
             ? {}
             : selectedFolder
@@ -414,6 +633,8 @@ function GraphInner() {
             setNotes(notesData);
             setRawNotes(notesData);
             setRawConnections(connectionsData);
+            rawNotesRef.current = notesData;
+            rawConnectionsRef.current = connectionsData;
             saveGraphToCache(notesData, connectionsData);
             buildGraph(notesData, connectionsData, isDark);
           }
@@ -434,6 +655,8 @@ function GraphInner() {
         setNotes(notesData);
         setRawNotes(notesData);
         setRawConnections(connectionsData);
+        rawNotesRef.current = notesData;
+        rawConnectionsRef.current = connectionsData;
         saveGraphToCache(notesData, connectionsData);
         buildGraph(notesData, connectionsData, isDark);
       } finally {
@@ -488,7 +711,8 @@ function GraphInner() {
             edges={timelineMode ? timelineEdges : edges}
             onNodesChange={timelineMode ? undefined : onNodesChange}
             onEdgesChange={timelineMode ? undefined : onEdgesChange}
-            onNodeClick={(_, node) => navigate(`/notes/${node.id}`)}
+            onNodeClick={handleNodeClick}
+            edgeTypes={edgeTypes}
             fitView
             style={{ background: 'transparent' }}
             proOptions={{ hideAttribution: true }}
@@ -640,6 +864,29 @@ function GraphInner() {
           {timelineMode ? '⏸ Exit Timeline' : '⏵ Timeline'}
         </button>
         <button
+          onClick={() => {
+            if (pathMode) {
+              setPathMode(false);
+              setPathStart(null);
+              setSelectedPath([]);
+              setPathMessage('');
+              buildGraph(rawNotesRef.current, rawConnectionsRef.current, isDark);
+            } else {
+              setPathMode(true);
+              setPathMessage('① Click the starting note');
+            }
+          }}
+          className="glass-btn"
+          style={{
+            borderRadius: '8px', padding: '8px 14px',
+            fontSize: '13px', cursor: 'pointer',
+            background: pathMode ? 'rgba(16,185,129,0.3)' : undefined,
+            color: pathMode ? '#10B981' : undefined,
+          }}
+        >
+          {pathMode ? '✕ Exit Path' : '→ Find Path'}
+        </button>
+        <button
           onClick={handleReorganise}
           className="glass-btn"
           style={{
@@ -667,7 +914,7 @@ function GraphInner() {
             fontSize: '13px', cursor: 'pointer',
             background: showPanel ? 'rgba(6,182,212,0.2)' : undefined,
             borderColor: showPanel ? 'rgba(6,182,212,0.4)' : undefined,
-            color: showPanel ? '#06B6D4' : undefined,
+            color: showPanel ? '#06b6d4' : undefined,
           }}
         >
           ✦ Notes
@@ -699,9 +946,9 @@ function GraphInner() {
               justifyContent: 'space-between', marginBottom: '12px',
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ color: '#06B6D4', fontSize: '14px' }}>✦</span>
+                <span style={{ color: '#06b6d4', fontSize: '14px' }}>✦</span>
                 <p style={{
-                  color: '#06B6D4', fontSize: '11px',
+                  color: '#06b6d4', fontSize: '11px',
                   fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em',
                 }}>
                   What your mind reveals
@@ -721,7 +968,7 @@ function GraphInner() {
             {/* Top accent line */}
             <div style={{
               position: 'absolute', top: 0, left: '20%', right: '20%', height: '1px',
-              background: 'linear-gradient(90deg, transparent, #06B6D4, transparent)',
+              background: 'linear-gradient(90deg, transparent, #06b6d4, transparent)',
               borderRadius: '1px',
             }} />
 
@@ -730,7 +977,7 @@ function GraphInner() {
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <div style={{
                   width: '6px', height: '6px', borderRadius: '50%',
-                  background: '#06B6D4', animation: 'pulse 1.5s infinite',
+                  background: '#06b6d4', animation: 'pulse 1.5s infinite',
                 }} />
                 <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>
                   Your mind is wandering through the connections...
@@ -759,7 +1006,7 @@ function GraphInner() {
                   onClick={fetchAISummary}
                   style={{
                     background: 'none', border: 'none',
-                    color: '#06B6D4', fontSize: '11px',
+                    color: '#06b6d4', fontSize: '11px',
                     cursor: 'pointer',
                   }}
                 >
@@ -770,6 +1017,144 @@ function GraphInner() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Path instruction */}
+      {pathMode && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          style={{
+            position: 'absolute', top: 72, left: '50%',
+            transform: 'translateX(-50%)', zIndex: 2,
+          }}
+        >
+          <div className="glass-btn" style={{ padding: '8px 20px', borderRadius: '999px' }}>
+            <p style={{ color: '#10B981', fontSize: '12px', fontWeight: 500 }}>
+              {pathMessage}
+            </p>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Path result */}
+      {selectedPath.length > 0 && !pathMode && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          style={{
+            position: 'absolute', bottom: 100, left: '50%',
+            transform: 'translateX(-50%)', zIndex: 2, maxWidth: '600px',
+          }}
+        >
+          <div className="glass-btn" style={{ padding: '14px 20px', borderRadius: '12px' }}>
+            <p style={{ color: 'var(--text-muted)', fontSize: '11px', marginBottom: '8px', fontWeight: 600 }}>
+              PATH · {selectedPath.length} STEPS
+            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+              {selectedPath.map((nodeId, i) => {
+                const note = rawNotesRef.current.find(n => n.id === nodeId);
+                return (
+                  <React.Fragment key={nodeId}>
+                    <span style={{
+                      color: 'var(--text-primary)', fontSize: '12px',
+                      background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+                      padding: '3px 10px', borderRadius: '6px',
+                    }}>
+                      {note?.title || nodeId}
+                    </span>
+                    {i < selectedPath.length - 1 && (
+                      <span style={{ color: '#06B6D4' }}>→</span>
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </div>
+            <button
+              onClick={() => {
+                setSelectedPath([]);
+                buildGraph(rawNotesRef.current, rawConnectionsRef.current, isDark);
+              }}
+              style={{
+                marginTop: '10px', background: 'none', border: 'none',
+                color: 'var(--text-muted)', fontSize: '11px', cursor: 'pointer',
+              }}
+            >
+              Clear path ✕
+            </button>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Cluster legend */}
+      {clusters.length > 1 && !timelineMode && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          style={{
+            position: 'absolute', bottom: 140, left: 16,
+            zIndex: 2,
+            display: 'flex', gap: '6px', flexWrap: 'wrap',
+            maxWidth: '220px',
+            padding: '6px',
+          }}
+        >
+          {clusters.map(cluster => (
+            <div key={cluster.id} style={{
+              display: 'flex', alignItems: 'center', gap: '5px',
+              padding: '4px 10px', borderRadius: '999px',
+              background: cluster.color + '22',
+              border: `1px solid ${cluster.color}44`,
+              backdropFilter: 'blur(10px)',
+              whiteSpace: 'nowrap',
+            }}>
+              <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: cluster.color, flexShrink: 0 }} />
+              <span style={{ color: cluster.color, fontSize: '10px', fontWeight: 600 }}>
+                {clusterLabelsLoading ? '...' : cluster.label}
+              </span>
+              <span style={{ color: 'var(--text-muted)', fontSize: '10px' }}>
+                {cluster.noteIds.length}
+              </span>
+            </div>
+          ))}
+        </motion.div>
+      )}
+
+      {/* Orphan panel */}
+      {orphanIds.length > 0 && !timelineMode && (
+        <motion.div
+          initial={{ opacity: 0, x: -10 }}
+          animate={{ opacity: 1, x: 0 }}
+          style={{
+            position: 'absolute', bottom: 17, left: 50, zIndex: 2,
+          }}
+        >
+          <div className="glass-btn" style={{ padding: '10px 14px', borderRadius: '10px', maxWidth: '170px' }}>
+            <p style={{
+              color: '#F43F5E', fontSize: '9px', fontWeight: 700,
+              textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px',
+            }}>
+              ◌ Unconnected ({orphanIds.length})
+            </p>
+            {orphanIds.slice(0, 3).map(id => {
+              const note = rawNotesRef.current.find(n => n.id === id);
+              return (
+                <p key={id} style={{
+                  color: 'var(--text-muted)', fontSize: '10px',
+                  whiteSpace: 'nowrap', overflow: 'hidden',
+                  textOverflow: 'ellipsis', marginBottom: '2px',
+                }}>
+                  {note?.title}
+                </p>
+              );
+            })}
+            {orphanIds.length > 3 && (
+              <p style={{ color: 'var(--text-muted)', fontSize: '9px', marginTop: '2px' }}>
+                +{orphanIds.length - 3} more
+              </p>
+            )}
+          </div>
+        </motion.div>
+      )}
 
       {/* Floating notes panel */}
       {showPanel && (
@@ -832,7 +1217,7 @@ function GraphInner() {
                     target="_blank"
                     rel="noreferrer"
                     style={{
-                      color: '#06B6D4', fontSize: '12px',
+                      color: '#06b6d4', fontSize: '12px',
                       marginTop: '12px', display: 'inline-block',
                     }}
                   >
@@ -903,7 +1288,7 @@ function GraphInner() {
                     setSelectedPanelNote(null);
                   }}
                   style={{
-                    background: showCreateInPanel ? '#06B6D4' : '#1E293B',
+                    background: showCreateInPanel ? '#06b6d4' : '#1E293B',
                     color: showCreateInPanel ? '#0A0F1E' : '#94A3B8',
                     border: 'none', borderRadius: '6px',
                     padding: '4px 10px', fontSize: '13px',
