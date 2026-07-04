@@ -6,7 +6,7 @@ class Folder(models.Model):
     user = models.ForeignKey('accounts.User', on_delete=models.CASCADE, related_name='folders')
     name = models.CharField(max_length=255)
     icon = models.CharField(max_length=10, default='📁')
-    color = models.CharField(max_length=7, default='#06B6D4')
+    color = models.CharField(max_length=7, default='#032582')
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

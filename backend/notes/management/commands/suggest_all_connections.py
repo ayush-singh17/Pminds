@@ -47,11 +47,36 @@ class Command(BaseCommand):
                         db_models.Q(note_from_id=s['id'], note_to=target)
                     ).exists()
                     if not exists:
+                        # Get reason from AI
+                        reason = ''
+                        try:
+                            connected_note = Note.objects.get(id=s['id'])
+                            reason_resp = httpx.post(
+                                f"{settings.AI_SERVICE_URL}/connections/explain",
+                                json={
+                                    'note1': {
+                                        'id': str(target.id),
+                                        'title': target.title,
+                                        'content': target.content,
+                                    },
+                                    'note2': {
+                                        'id': s['id'],
+                                        'title': connected_note.title,
+                                        'content': connected_note.content,
+                                    }
+                                },
+                                timeout=30
+                            )
+                            reason = reason_resp.json().get('reason', '')
+                        except Exception:
+                            pass
+
                         Connection.objects.create(
                             user=target.user,
                             note_from=target,
                             note_to_id=s['id'],
                             strength=s['strength'],
+                            reason=reason,
                             ai_generated=True,
                         )
                         created += 1
