@@ -5,7 +5,6 @@ import { getNotes, getPatternInsight } from '../api/notes';
 import { getTags } from '../api/tags';
 import { useNoteStore } from '../store/noteStore';
 import { useThemeStore } from '../store/themeStore';
-import type { Note } from '../types';
 
 const TYPE_COLORS: Record<string, string> = {
   thought: '#06b6d4',

@@ -125,7 +125,7 @@ export default function RecentNotes() {
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
-          {Object.entries(grouped).map(([date, dateNotes], groupIndex) => (
+          {Object.entries(grouped).map(([date, dateNotes]) => (
             <div key={date}>
               {/* Date label */}
               <p style={{

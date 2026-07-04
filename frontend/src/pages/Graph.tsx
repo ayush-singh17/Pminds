@@ -1,6 +1,5 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import ReactFlow, {
-  Background,
   useNodesState, useEdgesState,
   MiniMap, Controls,
   useReactFlow, ReactFlowProvider,
@@ -9,7 +8,7 @@ import ReactFlow, {
 import type { Node, Edge, EdgeProps } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { getNotes, createNote, suggestConnections, getPatternInsight, getClusterLabel } from '../api/notes';
-import { getConnections, createConnection } from '../api/connections';
+import { getConnections } from '../api/connections';
 import { detectClusters, type Cluster } from '../utils/clusterDetect';
 import { findPath } from '../utils/pathFind';
 import DotField from '../components/DotField/DotField';
@@ -55,7 +54,7 @@ const TYPE_BORDER: Record<string, string> = {
 const TYPES = ['thought', 'quote', 'article', 'question', 'idea'];
 
 const ReasonEdge = ({
-  id, sourceX, sourceY, targetX, targetY,
+  sourceX, sourceY, targetX, targetY,
   sourcePosition, targetPosition, data, style, markerEnd,
 }: EdgeProps) => {
   const [showReason, setShowReason] = useState(false);
@@ -199,10 +198,6 @@ function GraphInner() {
   const [pathStart, setPathStart] = useState<string | null>(null);
   const [selectedPath, setSelectedPath] = useState<string[]>([]);
   const [pathMessage, setPathMessage] = useState('');
-  const [aiError, setAiError] = useState<string | null>(null);
-  const [connectionModal, setConnectionModal] = useState<{ source: string; target: string } | null>(null);
-  const [connectionForm, setConnectionForm] = useState({ reason: '', strength: 0.5 });
-  const [connectionCreating, setConnectionCreating] = useState(false);
   const sortedTimelineNotes = useRef<Note[]>([]);
   const lastClusterKeyRef = useRef('');
 
@@ -347,14 +342,14 @@ function GraphInner() {
     if (rawNotes.length === 0) return;
     setSummaryLoading(true);
     setShowSummary(true);
-    setAiError(null);
+
     try {
       const insight = await getPatternInsight(
         rawNotes.map(n => ({ title: n.title, content: n.content }))
       );
       setAiSummary(insight);
     } catch {
-      setAiError('Could not reach AI service. Please try again.');
+      console.error('Could not reach AI service. Please try again.');
     } finally {
       setSummaryLoading(false);
     }

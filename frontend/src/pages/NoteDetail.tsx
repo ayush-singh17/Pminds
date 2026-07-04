@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { getNote, updateNote, deleteNote, suggestConnections } from '../api/notes';
 import { getConnectionsByNote } from '../api/connections';
 import { useNoteStore } from '../store/noteStore';
 import { useThemeStore } from '../store/themeStore';
-import { getFolders } from '../api/folders';
 import type { Note, Connection } from '../types';
 
 const TYPE_COLORS: Record<string, string> = {
@@ -26,7 +25,7 @@ export default function NoteDetail() {
   const [suggestionResult, setSuggestionResult] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState({ title: '', content: '' });
-  const [moving, setMoving] = useState(false);
+  const [, setMoving] = useState(false);
   const [moveSuccess, setMoveSuccess] = useState('');
 
   useEffect(() => {
