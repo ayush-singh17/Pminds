@@ -8,7 +8,7 @@ import { useNoteStore } from '../store/noteStore';
 import { useThemeStore } from '../store/themeStore';
 import { getNotes } from '../api/notes';
 import { getConnections } from '../api/connections';
-import type { Folder, Note, Connection } from '../types';
+import type { Folder } from '../types';
 import { FaFolder, FaBrain, FaLightbulb, FaMicroscope, FaFireFlameCurved } from 'react-icons/fa6';
 import { IoBook } from 'react-icons/io5';
 import { AiFillThunderbolt } from 'react-icons/ai';
@@ -59,7 +59,7 @@ function MiniGraph({ folder }: { folder: Folder | null }) {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [loading, setLoading] = useState(true);
-  const { isDark } = useThemeStore();
+
 
   useEffect(() => {
     const fetch = async () => {
