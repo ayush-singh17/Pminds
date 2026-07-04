@@ -12,3 +12,4 @@ django-redis
 celery[redis]
 gunicorn
 whitenoise
+Pillow
