@@ -5,3 +5,4 @@ groq
 sentence-transformers
 python-dotenv
 httpx
+gunicorn

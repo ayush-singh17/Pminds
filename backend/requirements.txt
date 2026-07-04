@@ -10,3 +10,5 @@ python-dotenv
 psycopg2-binary
 django-redis
 celery[redis]
+gunicorn
+whitenoise
