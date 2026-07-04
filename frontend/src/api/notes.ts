@@ -50,11 +50,21 @@ export const suggestConnections = async (noteId: string) => {
 };
 
 export const getPatternInsight = async (notes: { title: string; content: string }[]): Promise<string | null> => {
-  const response = await fetch('http://localhost:8002/insights/pattern', {
+  const response = await fetch(`${import.meta.env.VITE_AI_URL}/insights/pattern`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ notes }),
   });
   const data = await response.json();
   return data.insight;
+};
+
+export const getClusterLabel = async (notes: { title: string }[]): Promise<string> => {
+  const response = await fetch(`${import.meta.env.VITE_AI_URL}/insights/cluster-label`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ notes }),
+  });
+  const data = await response.json();
+  return data.label;
 };

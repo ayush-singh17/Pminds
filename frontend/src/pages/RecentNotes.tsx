@@ -1,19 +1,33 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, useInView } from 'framer-motion';
 import { getNotes } from '../api/notes';
+import { useThemeStore } from '../store/themeStore';
 import type { Note } from '../types';
 
 const TYPE_COLORS: Record<string, string> = {
-  thought: '#06B6D4',
-  quote: '#10B981',
-  article: '#F59E0B',
-  question: '#F43F5E',
-  idea: '#8B5CF6',
+  thought: '#06b6d4', quote: '#10B981', article: '#F59E0B',
+  question: '#F43F5E', idea: '#8B5CF6',
+};
+
+const AnimatedItem = ({ children, index }: { children: React.ReactNode; index: number }) => {
+  const ref = useRef<HTMLDivElement>(null);
+  const inView = useInView(ref, { amount: 0.2, once: false });
+  return (
+    <motion.div
+      ref={ref}
+      initial={{ scale: 0.95, opacity: 0 }}
+      animate={inView ? { scale: 1, opacity: 1 } : { scale: 0.95, opacity: 0 }}
+      transition={{ duration: 0.2, delay: index * 0.03 }}
+    >
+      {children}
+    </motion.div>
+  );
 };
 
 export default function RecentNotes() {
   const navigate = useNavigate();
+  const { isDark } = useThemeStore();
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -48,7 +62,7 @@ export default function RecentNotes() {
       } else {
         label = date.toLocaleDateString('en-US', {
           weekday: 'long', month: 'long', day: 'numeric'
-        });
+        }).toUpperCase();
       }
 
       if (!groups[label]) groups[label] = [];
@@ -59,82 +73,156 @@ export default function RecentNotes() {
 
   const grouped = groupByDate(notes);
 
+  const cardStyle = (note: Note) => ({
+    background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.6)',
+    border: isDark ? '1px solid rgba(255,255,255,0.07)' : '1px solid rgba(0,0,0,0.06)',
+    borderLeft: `3px solid ${TYPE_COLORS[note.type] || '#032582'}`,
+    borderRadius: '12px',
+    padding: '16px 20px',
+    marginBottom: '8px',
+    backdropFilter: 'blur(10px)',
+    WebkitBackdropFilter: 'blur(10px)',
+    cursor: 'pointer',
+    transition: 'background 0.15s',
+  });
+
   return (
     <div className="max-w-3xl mx-auto">
-      <div className="flex items-center gap-4 mb-8">
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
         <button
           onClick={() => navigate('/dashboard')}
-          style={{ color: '#94A3B8', fontSize: '13px', background: 'none', border: 'none', cursor: 'pointer' }}
+          style={{
+            color: 'var(--text-muted)', fontSize: '13px',
+            background: 'none', border: 'none', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', gap: '4px',
+          }}
         >
           ← Back
         </button>
         <div>
-          <h1 className="text-2xl font-semibold" style={{ color: '#F8FAFC' }}>Recent</h1>
-          <p className="text-sm" style={{ color: '#94A3B8' }}>{notes.length} notes total</p>
+          <h1 style={{
+            fontSize: '28px', fontWeight: 700,
+            color: 'var(--text-primary)', letterSpacing: '-0.02em',
+          }}>
+            Recent
+          </h1>
+          <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>
+            {notes.length} notes total
+          </p>
         </div>
       </div>
 
       {loading ? (
-        <div className="flex flex-col gap-3">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {[1,2,3,4,5].map(i => (
-            <div key={i} className="h-16 rounded-lg animate-pulse"
-              style={{ background: '#111827' }} />
+            <div key={i} style={{
+              height: '72px', borderRadius: '12px',
+              background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)',
+              animation: 'pulse 1.5s infinite',
+            }} />
           ))}
         </div>
       ) : (
-        <div className="flex flex-col gap-8">
-          {Object.entries(grouped).map(([date, dateNotes]) => (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
+          {Object.entries(grouped).map(([date, dateNotes], groupIndex) => (
             <div key={date}>
-              <p className="text-xs font-medium uppercase tracking-widest mb-3"
-                style={{ color: '#94A3B8' }}>
+              {/* Date label */}
+              <p style={{
+                color: 'var(--text-muted)', fontSize: '10px',
+                fontWeight: 700, letterSpacing: '0.1em',
+                marginBottom: '12px',
+                paddingBottom: '8px',
+                borderBottom: isDark ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(0,0,0,0.05)',
+              }}>
                 {date}
               </p>
-              <div className="flex flex-col gap-2">
-                {dateNotes.map((note) => (
-                  <motion.div
-                    key={note.id}
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    whileHover={{ x: 4 }}
-                    onClick={() => navigate(`/notes/${note.id}`)}
-                    className="flex items-start justify-between px-4 py-4 rounded-lg cursor-pointer group"
-                    style={{ background: '#111827', border: '1px solid #1E293B' }}
-                  >
-                    <div className="flex items-start gap-3 flex-1 min-w-0">
-                      <span className="mt-1.5 shrink-0"
-                        style={{ color: TYPE_COLORS[note.type], fontSize: 8 }}>●</span>
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium mb-1 truncate" style={{ color: '#F8FAFC' }}>
-                          {note.title}
-                        </p>
-                        <p className="text-xs truncate" style={{ color: '#94A3B8' }}>
-                          {note.content.slice(0, 80)}...
-                        </p>
-                        {/* Folder badges */}
-                        {note.folders && note.folders.length > 0 && (
-                          <div className="flex gap-1.5 mt-2">
-                            {note.folders.map(folder => (
-                              <span key={folder.id} className="text-xs px-2 py-0.5 rounded-full"
-                                style={{ background: folder.color + '22', color: folder.color }}>
-                                {folder.icon} {folder.name}
-                              </span>
-                            ))}
-                          </div>
-                        )}
+
+              {/* Notes */}
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                {dateNotes.map((note, i) => (
+                  <AnimatedItem key={note.id} index={i}>
+                    <motion.div
+                      whileHover={{ x: 4 }}
+                      onClick={() => navigate(`/notes/${note.id}`)}
+                      style={cardStyle(note)}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = isDark
+                          ? 'rgba(255,255,255,0.06)'
+                          : 'rgba(255,255,255,0.9)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = isDark
+                          ? 'rgba(255,255,255,0.03)'
+                          : 'rgba(255,255,255,0.6)';
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
+                        {/* Left */}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <p style={{
+                            color: 'var(--text-primary)', fontSize: '14px',
+                            fontWeight: 600, marginBottom: '4px',
+                            overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
+                          }}>
+                            {note.title}
+                          </p>
+                          <p style={{
+                            color: 'var(--text-muted)', fontSize: '12px',
+                            lineHeight: '1.5',
+                            overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
+                          }}>
+                            {note.content.slice(0, 80)}...
+                          </p>
+
+                          {/* Folder + tag badges */}
+                          {(note.folders?.length > 0 || note.tags?.length > 0) && (
+                            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '8px' }}>
+                              {note.folders?.map(folder => (
+                                <span key={folder.id} style={{
+                                  color: folder.color, fontSize: '10px',
+                                  padding: '2px 8px', borderRadius: '999px',
+                                  background: folder.color + '18',
+                                  border: `1px solid ${folder.color}33`,
+                                }}>
+                                  {folder.name}
+                                </span>
+                              ))}
+                              {note.tags?.map(tag => (
+                                <span key={tag.id} style={{
+                                  color: tag.color, fontSize: '10px',
+                                  padding: '2px 8px', borderRadius: '999px',
+                                  background: tag.color + '18',
+                                  border: `1px solid ${tag.color}33`,
+                                }}>
+                                  {tag.name}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Right */}
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px', flexShrink: 0 }}>
+                          <p style={{ color: 'var(--text-muted)', fontSize: '11px' }}>
+                            {new Date(note.created_at).toLocaleTimeString('en-US', {
+                              hour: '2-digit', minute: '2-digit'
+                            })}
+                          </p>
+                          <span style={{
+                            color: TYPE_COLORS[note.type] || '#06b6d4',
+                            fontSize: '9px', fontWeight: 700,
+                            padding: '2px 8px', borderRadius: '999px',
+                            background: (TYPE_COLORS[note.type] || '#06b6d4') + '18',
+                            border: `1px solid ${(TYPE_COLORS[note.type] || '#06b6d4')}33`,
+                            textTransform: 'uppercase', letterSpacing: '0.06em',
+                          }}>
+                            {note.type}
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                    <div className="ml-4 shrink-0 text-right">
-                      <p className="text-xs" style={{ color: '#94A3B8' }}>
-                        {new Date(note.created_at).toLocaleTimeString('en-US', {
-                          hour: '2-digit', minute: '2-digit'
-                        })}
-                      </p>
-                      <p className="text-xs mt-1"
-                        style={{ color: TYPE_COLORS[note.type] || '#94A3B8' }}>
-                        {note.type}
-                      </p>
-                    </div>
-                  </motion.div>
+                    </motion.div>
+                  </AnimatedItem>
                 ))}
               </div>
             </div>

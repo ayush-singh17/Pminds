@@ -28,7 +28,7 @@ const FOLDER_ICONS: Record<string, React.ReactNode> = {
 const renderFolderIcon = (iconKey: string) => FOLDER_ICONS[iconKey] || <FaFolder />;
 
 const TYPE_COLORS: Record<string, string> = {
-  thought: '#06B6D4',
+  thought: '#06b6d4',
   quote: '#10B981',
   article: '#F59E0B',
   question: '#F43F5E',
@@ -87,7 +87,7 @@ export default function Notes() {
 
   const handleCreateTag = async () => {
     if (!newTagName.trim()) return;
-    const colors = ['#06B6D4', '#10B981', '#F59E0B', '#F43F5E', '#8B5CF6'];
+    const colors = ['#06b6d4', '#10B981', '#F59E0B', '#F43F5E', '#8B5CF6'];
     const randomColor = colors[Math.floor(Math.random() * colors.length)];
     const tag = await createTag({ name: newTagName.trim(), color: randomColor });
     setTags([...tags, tag]);
@@ -215,7 +215,7 @@ export default function Notes() {
           <button
             onClick={handleOpenForm}
             className="glass-btn px-4 py-2 rounded-lg text-sm font-medium"
-            style={{ background: '#06B6D4', color: '#0A0F1E',padding:'5px',display:'flex',alignSelf:'center',justifyContent:'center',alignItems:'center' }}
+            style={{ background: '#06b6d4', color: '#0A0F1E',padding:'5px',display:'flex',alignSelf:'center',justifyContent:'center',alignItems:'center' }}
           >
             + New note
           </button>
@@ -306,7 +306,7 @@ export default function Notes() {
                     color: 'var(--text-primary)', fontSize: '15px', outline: 'none',
                     width: '100%',
                   }}
-                  onFocus={(e) => e.target.style.borderColor = '#06B6D4'}
+                  onFocus={(e) => e.target.style.borderColor = '#06b6d4'}
                   onBlur={(e) => e.target.style.borderColor = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}
                 />
 
@@ -324,7 +324,7 @@ export default function Notes() {
                     color: 'var(--text-primary)', fontSize: '13px', outline: 'none',
                     width: '100%', resize: 'none', lineHeight: '1.8',
                   }}
-                  onFocus={(e) => e.target.style.borderColor = '#06B6D4'}
+                  onFocus={(e) => e.target.style.borderColor = '#06b6d4'}
                   onBlur={(e) => e.target.style.borderColor = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}
                 />
 
@@ -409,7 +409,7 @@ export default function Notes() {
                         padding: '8px 14px', borderRadius: '8px',
                         background: 'rgba(6,182,212,0.2)',
                         border: '1px solid rgba(6,182,212,0.3)',
-                        color: '#06B6D4', fontSize: '12px', cursor: 'pointer',
+                        color: '#06b6d4', fontSize: '12px', cursor: 'pointer',
                       }}
                     >
                       Add
@@ -472,8 +472,8 @@ export default function Notes() {
                     style={{
                       flex: 1, padding: '14px',
                       borderRadius: '10px',
-                      background: creating ? 'rgba(6,182,212,0.3)' : '#06B6D4',
-                      border: '1px solid #06B6D4',
+                      background: creating ? 'rgba(6,182,212,0.3)' : '#06b6d4',
+                      border: '1px solid #06b6d4',
                       color: '#0A0F1E', cursor: 'pointer',
                       fontSize: '14px', fontWeight: 600,
                     }}
@@ -518,7 +518,7 @@ export default function Notes() {
               onClick={handleOpenForm}
               style={{
                 padding: '10px 24px', borderRadius: '8px',
-                background: '#06B6D4', color: '#0A0F1E',
+                background: '#06b6d4', color: '#0A0F1E',
                 fontSize: '13px', fontWeight: 600,
                 border: 'none', cursor: 'pointer',
               }}
@@ -538,7 +538,7 @@ export default function Notes() {
                 style={{
                   background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
                   border: isDark ? '1px solid rgba(255,255,255,0.07)' : '1px solid rgba(0,0,0,0.06)',
-                  borderLeft: `3px solid ${TYPE_COLORS[note.type] || '#06B6D4'}`,
+                  borderLeft: `3px solid ${TYPE_COLORS[note.type] || '#06b6d4'}`,
                   borderRadius: '10px',
                   padding: '14px 16px',
                   marginBottom: '8px',

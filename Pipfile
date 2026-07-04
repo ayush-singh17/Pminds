@@ -20,6 +20,9 @@ django-ratelimit = "*"
 slowapi = "*"
 django-redis = "*"
 celery = {extras = ["redis"], version = "*"}
+locust = "*"
+gunicorn = "*"
+whitenoise = "*"
 
 [dev-packages]
 

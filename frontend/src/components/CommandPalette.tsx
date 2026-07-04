@@ -16,7 +16,7 @@ interface Result {
 }
 
 const TYPE_COLORS: Record<string, string> = {
-  thought: '#06B6D4',
+  thought: '#032582',
   quote: '#10B981',
   article: '#F59E0B',
   question: '#F43F5E',
@@ -225,7 +225,7 @@ export default function CommandPalette() {
                           background: i === selected
                             ? (isDark ? 'rgba(6,182,212,0.1)' : 'rgba(6,182,212,0.08)')
                             : 'transparent',
-                          borderLeft: i === selected ? '3px solid #06B6D4' : '3px solid transparent',
+                          borderLeft: i === selected ? '3px solid #032582' : '3px solid transparent',
                           transition: 'all 0.1s',
                         }}
                         onMouseEnter={() => setSelected(i)}

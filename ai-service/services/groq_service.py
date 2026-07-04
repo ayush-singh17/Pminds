@@ -1,27 +1,38 @@
 import os
-from groq import Groq
+from groq import AsyncGroq
 from dotenv import load_dotenv
 
 load_dotenv()
 
-client = Groq(api_key=os.getenv('GROQ_API_KEY'))
+client = AsyncGroq(api_key=os.getenv('GROQ_API_KEY'))
 
-def explain_connection(note1_title: str, note1_content: str, 
-                       note2_title: str, note2_content: str) -> str:
-    prompt = f"""Two ideas are semantically connected. Explain why in one concise sentence.
+async def get_connection_reason(
+    title1: str, content1: str,
+    title2: str, content2: str
+) -> str:
+    prompt = f"""You are a philosopher and intellectual analyst. 
 
-Idea 1: {note1_title}
-{note1_content[:300]}
+Two ideas are semantically connected. Find the DEEP conceptual link between them — not surface words they share, but the underlying intellectual thread that connects them.
 
-Idea 2: {note2_title}
-{note2_content[:300]}
+Idea 1: "{title1}"
+{content1[:200]}
 
-One sentence explanation of the connection:"""
+Idea 2: "{title2}"
+{content2[:200]}
 
-    response = client.chat.completions.create(
+Write ONE sentence (max 20 words) explaining the philosophical or conceptual connection. 
+Do NOT mention shared words. Focus on the underlying idea.
+Be specific and insightful, not generic.
+
+Example of BAD reason: "Both notes mention power and control"
+Example of GOOD reason: "Both explore how external constraints paradoxically create internal freedom"
+
+One sentence only:"""
+
+    response = await client.chat.completions.create(
         model="llama-3.1-8b-instant",
         messages=[{"role": "user", "content": prompt}],
-        max_tokens=100,
-        temperature=0.3,
+        max_tokens=60,
+        temperature=0.4,
     )
     return response.choices[0].message.content.strip()

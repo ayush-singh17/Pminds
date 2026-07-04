@@ -88,6 +88,7 @@ export const useNoteStore = create<NoteState>()(
         connections: state.connections,
         notesCache: state.notesCache,
         lastFetched: state.lastFetched,
+        selectedFolder: state.selectedFolder,
       }),
     }
   )

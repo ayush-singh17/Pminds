@@ -1,24 +1,23 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { getNote, updateNote, deleteNote, suggestConnections } from '../api/notes';
 import { getConnectionsByNote } from '../api/connections';
 import { useNoteStore } from '../store/noteStore';
+import { useThemeStore } from '../store/themeStore';
 import { getFolders } from '../api/folders';
 import type { Note, Connection } from '../types';
 
 const TYPE_COLORS: Record<string, string> = {
-  thought: '#06B6D4',
-  quote: '#10B981',
-  article: '#F59E0B',
-  question: '#F43F5E',
-  idea: '#8B5CF6',
+  thought: '#06b6d4', quote: '#10B981', article: '#F59E0B',
+  question: '#F43F5E', idea: '#8B5CF6',
 };
 
 export default function NoteDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { updateNote: updateStore, deleteNote: deleteStore } = useNoteStore();
+  const { isDark } = useThemeStore();
+  const { updateNote: updateStore, deleteNote: deleteStore, folders } = useNoteStore();
 
   const [note, setNote] = useState<Note | null>(null);
   const [connections, setConnections] = useState<Connection[]>([]);
@@ -29,19 +28,16 @@ export default function NoteDetail() {
   const [editForm, setEditForm] = useState({ title: '', content: '' });
   const [moving, setMoving] = useState(false);
   const [moveSuccess, setMoveSuccess] = useState('');
-  const { folders } = useNoteStore();
 
   useEffect(() => {
     const fetch = async () => {
       try {
-        const [noteData, connsData, foldersData] = await Promise.all([
+        const [noteData, connsData] = await Promise.all([
           getNote(id!),
           getConnectionsByNote(id!),
-          getFolders(),
         ]);
         setNote(noteData);
         setConnections(connsData);
-        // folders already in store from useInitApp
         setEditForm({ title: noteData.title, content: noteData.content });
       } finally {
         setLoading(false);
@@ -56,12 +52,9 @@ export default function NoteDetail() {
     try {
       const result = await suggestConnections(id!);
       const count = result.connections_created;
-      setSuggestionResult(
-        count > 0
-          ? `Found ${count} new connection${count > 1 ? 's' : ''}. Check the graph.`
-          : 'No new connections found.'
-      );
-      // Refresh connections
+      setSuggestionResult(count > 0
+        ? `Found ${count} new connection${count > 1 ? 's' : ''}.`
+        : 'No new connections found.');
       const connsData = await getConnectionsByNote(id!);
       setConnections(connsData);
     } finally {
@@ -84,67 +77,85 @@ export default function NoteDetail() {
     navigate('/notes');
   };
 
-  if (loading) {
-    return (
-      <div className="max-w-3xl mx-auto">
-        <div className="h-8 w-48 rounded animate-pulse mb-4" style={{ background: '#111827' }} />
-        <div className="h-64 rounded-lg animate-pulse" style={{ background: '#111827' }} />
-      </div>
-    );
-  }
+  const cardStyle = {
+    background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.6)',
+    border: isDark ? '1px solid rgba(255,255,255,0.07)' : '1px solid rgba(0,0,0,0.06)',
+    backdropFilter: 'blur(10px)',
+    WebkitBackdropFilter: 'blur(10px)',
+    borderRadius: '16px',
+    padding: '24px',
+    marginBottom: '16px',
+    boxShadow: isDark
+      ? '0 4px 16px rgba(0,0,0,0.2)'
+      : '0 4px 16px rgba(0,0,0,0.06)',
+  };
 
-  if (!note) {
-    return (
-      <div className="max-w-3xl mx-auto text-center py-20">
-        <p style={{ color: '#94A3B8' }}>Note not found.</p>
-      </div>
-    );
-  }
+  if (loading) return (
+    <div className="max-w-3xl mx-auto">
+      {[1,2,3].map(i => (
+        <div key={i} style={{ ...cardStyle, height: '100px', animation: 'pulse 1.5s infinite' }} />
+      ))}
+    </div>
+  );
+
+  if (!note) return (
+    <div className="max-w-3xl mx-auto text-center py-20">
+      <p style={{ color: 'var(--text-muted)' }}>Note not found.</p>
+    </div>
+  );
 
   return (
     <div className="max-w-3xl mx-auto">
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
-      >
+      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+
         {/* Back */}
         <button
           onClick={() => navigate('/notes')}
-          className="text-sm mb-6 flex items-center gap-2"
-          style={{ color: '#94A3B8' }}
+          style={{
+            color: 'var(--text-muted)', fontSize: '13px', background: 'none',
+            border: 'none', cursor: 'pointer', marginBottom: '24px',
+            display: 'flex', alignItems: 'center', gap: '6px',
+          }}
         >
           ← Back to notes
         </button>
 
-        {/* Note card */}
-        <div className="rounded-xl p-6 mb-6"
-          style={{ background: '#111827', border: '1px solid #1E293B' }}>
-
+        {/* Main note card */}
+        <div style={{
+          ...cardStyle,
+          borderLeft: `3px solid ${TYPE_COLORS[note.type] || '#06b6d4'}`,
+        }}>
           {/* Header */}
-          <div className="flex items-start justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <span style={{ color: TYPE_COLORS[note.type], fontSize: 8 }}>●</span>
-              <span className="text-xs px-2 py-0.5 rounded-full"
-                style={{
-                  background: TYPE_COLORS[note.type] + '22',
-                  color: TYPE_COLORS[note.type],
-                }}>
-                {note.type}
-              </span>
-            </div>
-            <div className="flex items-center gap-3">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+            <span style={{
+              background: TYPE_COLORS[note.type] + '22',
+              color: TYPE_COLORS[note.type],
+              fontSize: '10px', fontWeight: 700,
+              padding: '3px 10px', borderRadius: '999px',
+              textTransform: 'uppercase', letterSpacing: '0.08em',
+            }}>
+              {note.type}
+            </span>
+            <div style={{ display: 'flex', gap: '8px' }}>
               <button
                 onClick={() => setEditing(!editing)}
-                className="text-xs px-3 py-1.5 rounded-lg"
-                style={{ background: '#1E293B', color: '#94A3B8' }}
+                style={{
+                  padding: '6px 14px', borderRadius: '8px', fontSize: '12px',
+                  background: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)',
+                  border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.08)',
+                  color: 'var(--text-muted)', cursor: 'pointer',
+                }}
               >
                 {editing ? 'Cancel' : 'Edit'}
               </button>
               <button
                 onClick={handleDelete}
-                className="text-xs px-3 py-1.5 rounded-lg"
-                style={{ background: '#F43F5E22', color: '#F43F5E' }}
+                style={{
+                  padding: '6px 14px', borderRadius: '8px', fontSize: '12px',
+                  background: 'rgba(244,63,94,0.1)',
+                  border: '1px solid rgba(244,63,94,0.2)',
+                  color: '#F43F5E', cursor: 'pointer',
+                }}
               >
                 Delete
               </button>
@@ -152,88 +163,105 @@ export default function NoteDetail() {
           </div>
 
           {editing ? (
-            <div className="flex flex-col gap-3">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <input
                 value={editForm.title}
                 onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
-                className="rounded-lg px-3 py-2.5 text-lg font-semibold outline-none"
                 style={{
-                  background: '#0A0F1E',
-                  border: '1px solid #1E293B',
-                  color: '#F8FAFC',
+                  background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
+                  border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.08)',
+                  borderRadius: '10px', padding: '12px 16px',
+                  color: 'var(--text-primary)', fontSize: '18px',
+                  fontWeight: 600, outline: 'none', width: '100%',
                 }}
               />
               <textarea
                 value={editForm.content}
                 onChange={(e) => setEditForm({ ...editForm, content: e.target.value })}
-                rows={8}
-                className="rounded-lg px-3 py-2.5 text-sm outline-none resize-none"
+                rows={6}
                 style={{
-                  background: '#0A0F1E',
-                  border: '1px solid #1E293B',
-                  color: '#F8FAFC',
-                  lineHeight: '1.7',
+                  background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
+                  border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.08)',
+                  borderRadius: '10px', padding: '12px 16px',
+                  color: 'var(--text-primary)', fontSize: '14px',
+                  outline: 'none', resize: 'none', lineHeight: '1.8', width: '100%',
                 }}
               />
               <button
                 onClick={handleSave}
-                className="self-end px-4 py-2 rounded-lg text-sm font-medium"
-                style={{ background: '#06B6D4', color: '#0A0F1E' }}
+                style={{
+                  alignSelf: 'flex-end', padding: '10px 24px',
+                  borderRadius: '10px', background: '#06b6d4',
+                  border: 'none', color: '#0A0F1E',
+                  fontSize: '13px', fontWeight: 600, cursor: 'pointer',
+                }}
               >
                 Save changes
               </button>
             </div>
           ) : (
             <>
-              <h1 className="text-xl font-semibold mb-4" style={{ color: '#F8FAFC' }}>
+              <h1 style={{
+                color: 'var(--text-primary)', fontSize: '24px',
+                fontWeight: 700, marginBottom: '16px', lineHeight: 1.3,
+                letterSpacing: '-0.02em',
+              }}>
                 {note.title}
               </h1>
-              <p className="text-sm leading-relaxed" style={{ color: '#94A3B8', lineHeight: '1.8' }}>
+              <p style={{
+                color: 'var(--text-muted)', fontSize: '14px',
+                lineHeight: '1.9', marginBottom: '20px',
+              }}>
                 {note.content}
               </p>
               {note.source_url && (
                 <a href={note.source_url} target="_blank" rel="noreferrer"
-                  className="text-xs mt-4 inline-block"
-                  style={{ color: '#06B6D4' }}>
+                  style={{ color: '#06b6d4', fontSize: '12px', display: 'inline-block', marginBottom: '16px' }}>
                   Source →
                 </a>
               )}
             </>
           )}
 
-          {/* Tags */}
-          {note.tags.length > 0 && (
-            <div className="flex gap-2 mt-4 pt-4" style={{ borderTop: '1px solid #1E293B' }}>
+          {/* Tags + date */}
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            paddingTop: '16px',
+            borderTop: isDark ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(0,0,0,0.05)',
+          }}>
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
               {note.tags.map(tag => (
-                <span key={tag.id} className="px-2 py-0.5 rounded-full text-xs"
-                  style={{ background: tag.color + '22', color: tag.color }}>
+                <span key={tag.id} style={{
+                  background: tag.color + '22', color: tag.color,
+                  fontSize: '10px', padding: '2px 10px', borderRadius: '999px',
+                  border: `1px solid ${tag.color}44`,
+                }}>
                   {tag.name}
                 </span>
               ))}
             </div>
-          )}
-
-          <p className="text-xs mt-4" style={{ color: '#94A3B8' }}>
-            {new Date(note.created_at).toLocaleDateString('en-US', {
-              year: 'numeric', month: 'long', day: 'numeric'
-            })}
-          </p>
+            <p style={{ color: 'var(--text-muted)', fontSize: '11px', flexShrink: 0 }}>
+              {new Date(note.created_at).toLocaleDateString('en-US', {
+                year: 'numeric', month: 'long', day: 'numeric'
+              })}
+            </p>
+          </div>
         </div>
 
         {/* Move to folder */}
-        <div className="rounded-xl p-6 mb-6"
-          style={{ background: '#111827', border: '1px solid #1E293B' }}>
-          <h2 className="text-sm font-medium mb-1" style={{ color: '#F8FAFC' }}>
-            Move to folder
-          </h2>
-          <p className="text-xs mb-4" style={{ color: '#94A3B8' }}>
-            Currently in: {note.folders.length > 0
+        <div style={cardStyle}>
+          <p style={{
+            color: 'var(--text-muted)', fontSize: '11px', fontWeight: 700,
+            textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px',
+          }}>
+            Folder
+          </p>
+          <p style={{ color: 'var(--text-muted)', fontSize: '12px', marginBottom: '12px' }}>
+            {note.folders.length > 0
               ? note.folders.map(f => f.name).join(', ')
               : 'Unfiled'}
           </p>
-
-          <div className="flex flex-wrap gap-2">
-            {/* Unfiled option */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
             <button
               onClick={async () => {
                 setMoving(true);
@@ -243,17 +271,18 @@ export default function NoteDetail() {
                 setTimeout(() => setMoveSuccess(''), 2000);
                 setMoving(false);
               }}
-              className="px-3 py-1.5 rounded-full text-xs transition-all"
               style={{
-                background: note.folders.length === 0 ? '#1E293B' : '#0A0F1E',
-                border: `1px solid ${note.folders.length === 0 ? '#94A3B8' : '#1E293B'}`,
-                color: note.folders.length === 0 ? '#F8FAFC' : '#94A3B8',
+                padding: '6px 14px', borderRadius: '999px', fontSize: '11px',
+                background: note.folders.length === 0
+                  ? (isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)')
+                  : 'transparent',
+                border: isDark ? '1px solid rgba(255,255,255,0.15)' : '1px solid rgba(0,0,0,0.1)',
+                color: note.folders.length === 0 ? 'var(--text-primary)' : 'var(--text-muted)',
+                cursor: 'pointer',
               }}
             >
               ✦ Unfiled
             </button>
-
-            {/* Folder options */}
             {folders.map(folder => {
               const inFolder = note.folders.some(f => f.id === folder.id);
               return (
@@ -261,125 +290,163 @@ export default function NoteDetail() {
                   key={folder.id}
                   onClick={async () => {
                     setMoving(true);
-                    try {
-                      let newFolderIds: string[];
-                      if (inFolder) {
-                        // remove from this folder
-                        newFolderIds = note.folders
-                          .filter(f => f.id !== folder.id)
-                          .map(f => f.id);
-                      } else {
-                        // add to this folder
-                        newFolderIds = [...note.folders.map(f => f.id), folder.id];
-                      }
-                      const updated = await updateNote(note.id, { folder_ids: newFolderIds });
-                      setNote(updated);
-                      setMoveSuccess(inFolder ? `Removed from ${folder.name}` : `Added to ${folder.name}`);
-                      setTimeout(() => setMoveSuccess(''), 2000);
-                    } finally {
-                      setMoving(false);
-                    }
+                    const newFolderIds = inFolder
+                      ? note.folders.filter(f => f.id !== folder.id).map(f => f.id)
+                      : [...note.folders.map(f => f.id), folder.id];
+                    const updated = await updateNote(note.id, { folder_ids: newFolderIds });
+                    setNote(updated);
+                    setMoveSuccess(inFolder ? `Removed from ${folder.name}` : `Added to ${folder.name}`);
+                    setTimeout(() => setMoveSuccess(''), 2000);
+                    setMoving(false);
                   }}
-                  className="px-3 py-1.5 rounded-full text-xs transition-all flex items-center gap-1.5"
                   style={{
-                    background: inFolder ? folder.color + '22' : '#0A0F1E',
-                    border: `1px solid ${inFolder ? folder.color : '#1E293B'}`,
-                    color: inFolder ? folder.color : '#94A3B8',
+                    padding: '6px 14px', borderRadius: '999px', fontSize: '11px',
+                    background: inFolder ? folder.color + '22' : 'transparent',
+                    border: `1px solid ${inFolder ? folder.color : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)')}`,
+                    color: inFolder ? folder.color : 'var(--text-muted)',
+                    cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px',
                   }}
                 >
-                  {folder.icon} {folder.name}
-                  {inFolder && <span style={{ fontSize: '10px' }}>✓</span>}
+                  {folder.name} {inFolder && '✓'}
                 </button>
               );
             })}
           </div>
-
           {moveSuccess && (
             <motion.p
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="text-xs mt-3 px-3 py-2 rounded-lg"
-              style={{ background: '#0A0F1E', color: '#10B981' }}
+              style={{
+                color: '#10B981', fontSize: '12px', marginTop: '10px',
+                padding: '6px 12px', borderRadius: '6px',
+                background: 'rgba(16,185,129,0.1)',
+              }}
             >
               {moveSuccess}
             </motion.p>
           )}
         </div>
 
-        {/* AI Connection Suggester */}
-        <div className="rounded-xl p-6 mb-6"
-          style={{ background: '#111827', border: '1px solid #1E293B' }}>
-          <div className="flex items-center justify-between mb-2">
+        {/* AI Connections */}
+        <div style={cardStyle}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
             <div>
-              <h2 className="text-sm font-medium mb-1" style={{ color: '#F8FAFC' }}>
+              <p style={{
+                color: 'var(--text-muted)', fontSize: '11px', fontWeight: 700,
+                textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px',
+              }}>
                 AI Connections
-              </h2>
-              <p className="text-xs" style={{ color: '#94A3B8' }}>
-                Find notes semantically related to this one
+              </p>
+              <p style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
+                Semantically related ideas
               </p>
             </div>
             <button
               onClick={handleSuggest}
               disabled={suggesting}
-              className="px-4 py-2 rounded-lg text-sm font-medium"
               style={{
-                background: suggesting ? '#0e7490' : '#06B6D4',
-                color: '#0A0F1E',
+                padding: '8px 16px', borderRadius: '8px', fontSize: '12px',
+                background: suggesting ? 'rgba(6,182,212,0.2)' : '#06b6d4',
+                border: '1px solid #06b6d4',
+                color: suggesting ? '#06b6d4' : '#0A0F1E',
+                cursor: 'pointer', fontWeight: 600,
+                display: 'flex', alignItems: 'center', gap: '6px',
               }}
             >
-              {suggesting ? 'Thinking...' : '✦ Suggest connections'}
+              {suggesting ? '...' : '✦ Suggest'}
             </button>
           </div>
+
           {suggestionResult && (
             <motion.p
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="text-xs mt-3 px-3 py-2 rounded-lg"
-              style={{ background: '#0A0F1E', color: '#10B981' }}
+              style={{
+                color: '#10B981', fontSize: '12px', marginBottom: '12px',
+                padding: '6px 12px', borderRadius: '6px',
+                background: 'rgba(16,185,129,0.1)',
+              }}
             >
               {suggestionResult}
             </motion.p>
           )}
-        </div>
 
-        {/* Existing connections */}
-        {connections.length > 0 && (
-          <div className="rounded-xl p-6"
-            style={{ background: '#111827', border: '1px solid #1E293B' }}>
-            <h2 className="text-sm font-medium mb-4" style={{ color: '#F8FAFC' }}>
-              Connected ideas ({connections.length})
-            </h2>
-            <div className="flex flex-col gap-2">
+          {connections.length === 0 ? (
+            <p style={{ color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center', padding: '20px 0' }}>
+              No connections yet. Click Suggest to find related ideas.
+            </p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {connections.map((conn) => {
                 const other = conn.note_from === id ? conn.note_to_detail : conn.note_from_detail;
+                const strength = Math.round(conn.strength * 100);
                 return (
                   <motion.div
                     key={conn.id}
                     whileHover={{ x: 4 }}
                     onClick={() => navigate(`/notes/${other.id}`)}
-                    className="flex items-center justify-between px-4 py-3 rounded-lg cursor-pointer"
-                    style={{ background: '#0A0F1E', border: '1px solid #1E293B' }}
+                    style={{
+                      padding: '14px 16px', borderRadius: '10px', cursor: 'pointer',
+                      background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)',
+                      border: isDark ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(0,0,0,0.05)',
+                      marginBottom: '8px', transition: 'background 0.15s',
+                    }}
+                    onMouseEnter={(e: any) => e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'}
+                    onMouseLeave={(e: any) => e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)'}
                   >
-                    <div className="flex items-center gap-3">
-                      {conn.ai_generated && (
-                        <span className="text-xs px-1.5 py-0.5 rounded"
-                          style={{ background: '#06B6D422', color: '#06B6D4' }}>
-                          AI
-                        </span>
-                      )}
-                      <span className="text-sm" style={{ color: '#F8FAFC' }}>
-                        {other.title}
-                      </span>
+                    {/* Note title + strength */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: conn.reason ? '8px' : '0' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        {conn.ai_generated && (
+                          <span style={{
+                            background: 'rgba(6,182,212,0.15)', color: '#06B6D4',
+                            fontSize: '9px', fontWeight: 700, padding: '2px 6px',
+                            borderRadius: '4px', letterSpacing: '0.05em',
+                          }}>
+                            AI
+                          </span>
+                        )}
+                        <p style={{ color: 'var(--text-primary)', fontSize: '13px', fontWeight: 500 }}>
+                          {other.title}
+                        </p>
+                      </div>
+                      {/* Strength bar */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                        <div style={{
+                          width: '50px', height: '3px', borderRadius: '999px',
+                          background: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)',
+                          overflow: 'hidden',
+                        }}>
+                          <div style={{
+                            height: '100%', borderRadius: '999px',
+                            width: `${strength}%`,
+                            background: strength > 70 ? '#10B981' : strength > 50 ? '#06B6D4' : '#F59E0B',
+                          }} />
+                        </div>
+                        <p style={{ color: 'var(--text-muted)', fontSize: '11px', minWidth: '28px' }}>
+                          {strength}%
+                        </p>
+                      </div>
                     </div>
-                    <span className="text-xs" style={{ color: '#94A3B8' }}>
-                      {Math.round(conn.strength * 100)}% match
-                    </span>
+
+                    {/* Connection reason */}
+                    {conn.reason && (
+                      <p style={{
+                        color: 'var(--text-muted)', fontSize: '12px',
+                        lineHeight: '1.6', fontStyle: 'italic',
+                        paddingTop: '8px',
+                        borderTop: isDark ? '1px solid rgba(255,255,255,0.05)' : '1px solid rgba(0,0,0,0.04)',
+                      }}>
+                        "{conn.reason}"
+                      </p>
+                    )}
                   </motion.div>
                 );
               })}
             </div>
-          </div>
-        )}
+          )}
+        </div>
+
       </motion.div>
     </div>
   );

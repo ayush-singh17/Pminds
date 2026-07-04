@@ -25,7 +25,7 @@ const FOLDER_ICONS: Record<string, React.ReactNode> = {
 const renderFolderIcon = (iconKey: string) => FOLDER_ICONS[iconKey] || <FaFolder />;
 
 const TYPE_COLORS: Record<string, string> = {
-  thought: '#06B6D4', quote: '#10B981', article: '#F59E0B',
+  thought: '#06b6d4', quote: '#10B981', article: '#F59E0B',
   question: '#F43F5E', idea: '#8B5CF6',
 };
 
@@ -83,7 +83,7 @@ function MiniGraph({ folder }: { folder: Folder | null }) {
           },
           data: { label: '' },
           style: {
-            background: TYPE_COLORS[note.type] || '#06B6D4',
+            background: TYPE_COLORS[note.type] || '#06b6d4',
             border: 'none', borderRadius: '50%',
             width: 10, height: 10, minWidth: 10,
           },
@@ -147,7 +147,7 @@ export default function Graphs() {
   };
 
   const allGraphs = [
-    { folder: null, name: 'Loose Thoughts', icon: null, color: '#06B6D4' },
+    { folder: null, name: 'Loose Thoughts', icon: null, color: '#06b6d4' },
     ...folders.map(f => ({ folder: f, name: f.name, icon: f.icon, color: f.color })),
   ];
 
