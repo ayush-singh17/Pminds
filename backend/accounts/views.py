@@ -4,6 +4,7 @@ from knox.models import AuthToken
 from knox.views import LoginView as KnoxLoginView
 from django.contrib.auth import login
 from .serializers import UserSerializer, RegisterSerializer, LoginSerializer
+from django.views.decorators.csrf import csrf_exempt
 
 from django_ratelimit.decorators import ratelimit
 from django.utils.decorators import method_decorator
@@ -23,7 +24,8 @@ class RegisterView(generics.CreateAPIView):
             "token": token
         })
 
-@method_decorator(ratelimit(key='ip', rate='10/m', method='POST', block=True), name='post')
+# @method_decorator(ratelimit(key='ip', rate='10/m', method='POST', block=True), name='post')
+@method_decorator(csrf_exempt, name='dispatch')
 class LoginView(generics.GenericAPIView):
     permission_classes = (permissions.AllowAny,)
     serializer_class = LoginSerializer
