@@ -23,6 +23,7 @@ celery = {extras = ["redis"], version = "*"}
 locust = "*"
 gunicorn = "*"
 whitenoise = "*"
+pytest = "*"
 
 [dev-packages]
 

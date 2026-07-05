@@ -1,4 +1,5 @@
 from rest_framework import generics, permissions, filters
+from django.core.cache import cache
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import Note
@@ -18,8 +19,14 @@ class NoteListCreateView(generics.ListCreateAPIView):
     def get_queryset(self):
         folder_id = self.request.query_params.get('folder')
         unfiled = self.request.query_params.get('unfiled')
+        user = self.request.user
+
+        cache_key = f'notes_{user.id}_{folder_id}_{unfiled}'
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached
         
-        qs = Note.objects.filter(user=self.request.user)
+        qs = Note.objects.filter(user=user).prefetch_related('tags', 'folders')
         
         if folder_id:
             qs = qs.filter(folders__id=folder_id)
@@ -27,10 +34,19 @@ class NoteListCreateView(generics.ListCreateAPIView):
             qs = qs.filter(folders__isnull=True)
         # if neither param → return ALL notes
         
-        return qs.distinct().order_by('-created_at')
+        result = list(qs.distinct().order_by('-created_at'))
+        cache.set(cache_key, result, timeout=300)  # 5 min cache
+        return result
+
+    def filter_queryset(self, queryset):
+        if isinstance(queryset, list):
+            return queryset
+        return super().filter_queryset(queryset)
 
     def perform_create(self, serializer):
         note = serializer.save(user=self.request.user)
+        # Invalidate cache on create
+        cache.delete_pattern(f'notes_{self.request.user.id}_*')
         # Run in background — don't block the response
         from notes.tasks import suggest_connections_async
         suggest_connections_async.delay(str(note.id), str(self.request.user.id))
